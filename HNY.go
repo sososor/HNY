@@ -130,10 +130,11 @@ func main() {
 		c.JSON(http.StatusOK, gin.H{"message": "Task deleted successfully"})
 	})
 
-	// サーバーをポート8080で起動
+	// サーバーをポート8080ではなく、環境変数 PORT で指定されたポートで起動
 	port := os.Getenv("PORT")
 	if port == "" {
-		port = "8080" // デフォルトポート
+		port = "8080" // デフォルトで8080
 	}
 	r.Run(":" + port)
+
 }
