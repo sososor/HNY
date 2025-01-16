@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HAPPY NEW YEAR 2025 習慣と抱負</title>
+    <style>
+        body {
+            font-family: 'Helvetica Neue', sans-serif;
+            background-color: #f0f4f8;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1, h2 {
+            text-align: center;
+            color: #003366;
+            margin-bottom: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        textarea {
+            width: 100%;
+            height: 60px;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 16px;
+            background-color: #f7f9fc;
+        }
+
+        button {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            background-color: #005b96;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-bottom: 20px;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #004080;
+        }
+
+        ul {
+            list-style-type: none;
+            padding-left: 0;
+        }
+
+        li {
+            background-color: #e6f0ff;
+            border-left: 4px solid #005b96;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .controls {
+            display: flex;
+            gap: 5px;
+        }
+
+        .controls button {
+            background-color: #005b96;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            cursor: pointer;
+            border-radius: 3px;
+            font-size: 14px;
+            transition: background-color 0.3s ease;
+        }
+
+        .controls button:hover {
+            background-color: #004080;
+        }
+
+        .controls button:active {
+            background-color: #003366;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+
+            li {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .controls {
+                margin-top: 10px;
+                width: 100%;
+                justify-content: flex-end;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>HAPPY NEW YEAR 2025 ~習慣と抱負~</h1>
+    <h2>習慣</h2>
+    <textarea id="habitInput" placeholder="習慣を入力してください..."></textarea>
+    <button onclick="addItem('habit')">保存</button>
+    <ul id="habits-list"></ul>
+
+    <h2>メインの抱負</h2>
+    <textarea id="mainGoalInput" placeholder="メインの抱負を入力してください..."></textarea>
+    <button onclick="addItem('main')">保存</button>
+    <ul id="main-goals-list"></ul>
+
+    <h2>サブの抱負</h2>
+    <textarea id="subGoalInput" placeholder="サブの抱負を入力してください..."></textarea>
+    <button onclick="addItem('sub')">保存</button>
+    <ul id="sub-goals-list"></ul>
+</div>
+
+<script>
+    let habitCount = 1;
+    let mainGoalCount = 1;
+    let subGoalCount = 1;
+
+    // ページ読み込み時にタスクを取得して表示
+    window.onload = function() {
+        fetchTasks();
+    }
+
+    function fetchTasks() {
+        fetch('/tasks')
+            .then(response => response.json())
+            .then(tasks => {
+                tasks.forEach(task => {
+                    addTaskToList(task.type, task.text, task.id);
+                });
+            })
+            .catch(error => console.error('Error fetching tasks:', error));
+    }
+
+    function addItem(type) {
+        let input, count;
+        let list;
+
+        switch (type) {
+            case 'habit':
+                input = document.getElementById('habitInput');
+                list = document.getElementById('habits-list');
+                count = habitCount++;
+                break;
+            case 'main':
+                input = document.getElementById('mainGoalInput');
+                list = document.getElementById('main-goals-list');
+                count = mainGoalCount++;
+                break;
+            case 'sub':
+                input = document.getElementById('subGoalInput');
+                list = document.getElementById('sub-goals-list');
+                count = subGoalCount++;
+                break;
+        }
+
+        if (input.value.trim() === "") {
+            alert("入力してください！");
+            return;
+        }
+
+        // サーバーにタスクを追加
+        const task = { text: input.value, type: type };
+        fetch('/tasks', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(task)
+        })
+        .then(response => response.json())
+        .then(data => {
+            addTaskToList(type, input.value, data.id);
+            input.value = "";
+        })
+        .catch(error => console.error('Error saving task:', error));
+    }
+
+    // タスクをリストに追加
+    function addTaskToList(type, text, id) {
+    let list;
+    switch (type) {
+        case 'habit':
+            list = document.getElementById('habits-list');
+            break;
+        case 'main':
+            list = document.getElementById('main-goals-list');
+            break;
+        case 'sub':
+            list = document.getElementById('sub-goals-list');
+            break;
+    }
+
+    const itemNumber = list.children.length + 1; // 現在のリストの長さを基に番号を決定
+    const newItem = document.createElement('li');
+    newItem.innerHTML = `<span>${itemNumber}. ${text}</span>
+                         <div class="controls">
+                             <button onclick="moveUp(this)">↑</button>
+                             <button onclick="moveDown(this)">↓</button>
+                             <button onclick="deleteItem(${id}, this)">削除</button>
+                         </div>`;
+
+    list.appendChild(newItem);
+}
+
+
+    function updateNumbers(list) {
+        const items = list.querySelectorAll('li');
+        items.forEach((item, index) => {
+            const textSpan = item.querySelector('span');
+            const itemText = textSpan.textContent.split('. ')[1];
+            textSpan.textContent = `${index + 1}. ${itemText}`;
+        });
+    }
+
+    function moveUp(button) {
+        const item = button.closest('li');
+        const prevItem = item.previousElementSibling;
+        const list = item.parentNode;
+        if (prevItem) {
+            list.insertBefore(item, prevItem);
+        }
+        updateNumbers(list);  // 番号を更新
+    }
+
+    function moveDown(button) {
+        const item = button.closest('li');
+        const nextItem = item.nextElementSibling;
+        const list = item.parentNode;
+        if (nextItem) {
+            list.insertBefore(nextItem, item);
+        }
+        updateNumbers(list);  // 番号を更新
+    }
+
+    function deleteItem(id, button) {
+        const item = button.closest('li');
+        const list = item.parentNode;
+        fetch(`/tasks/${id}`, { method: 'DELETE' })
+            .then(response => response.json())
+            .then(data => {
+                item.parentNode.removeChild(item);
+            })
+            .catch(error => console.error('Error deleting task:', error));
+    }
+</script>
+
+</body>
+</html>
