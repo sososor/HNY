@@ -22,10 +22,10 @@ type Task struct {
 // データベース接続の初期化
 func initDB() {
 	var err error
-	// Railwayから提供されるDATABASE_URLを使う
-	databaseURL := os.Getenv("DATABASE_URL")
+	// Railwayから提供されるDATABASE_PUBLIC_URLを使う
+	databaseURL := os.Getenv("DATABASE_PUBLIC_URL")
 	if databaseURL == "" {
-		log.Fatal("DATABASE_URL is not set")
+		log.Fatal("DATABASE_PUBLIC_URL is not set")
 	}
 
 	// PostgreSQLへの接続
