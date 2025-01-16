@@ -7,28 +7,40 @@ import (
 	"os"
 
 	"github.com/gin-gonic/gin"
-	_ "github.com/lib/pq" // PostgreSQL driver
+	_ "github.com/lib/pq" // PostgreSQLドライバ
 )
 
 var db *sql.DB
 
-// Task structure to represent habit, mainGoal, and subGoal
+// Task構造体（habit、mainGoal、subGoalの表現）
 type Task struct {
 	ID   int    `json:"id"`
 	Text string `json:"text"`
 	Type string `json:"type"`
 }
 
+// データベース接続の初期化
 func initDB() {
 	var err error
 	// Railwayから提供されるDATABASE_URLを使う
 	databaseURL := os.Getenv("DATABASE_URL")
-	db, err = sql.Open("postgres", databaseURL) // Open the PostgreSQL connection
+	if databaseURL == "" {
+		log.Fatal("DATABASE_URL is not set")
+	}
+
+	// PostgreSQLへの接続
+	db, err = sql.Open("postgres", databaseURL)
 	if err != nil {
 		log.Fatal("Failed to connect to the database:", err)
 	}
 
-	// Create tables if they don't exist
+	// データベース接続の確認
+	err = db.Ping()
+	if err != nil {
+		log.Fatal("Failed to ping the database:", err)
+	}
+
+	// テーブルが存在しない場合に作成
 	createTableQuery := `
 	CREATE TABLE IF NOT EXISTS tasks (
 		id SERIAL PRIMARY KEY,
@@ -41,21 +53,27 @@ func initDB() {
 	}
 }
 
+// メイン関数（APIサーバーの起動）
 func main() {
+	// データベース初期化
 	initDB()
 	defer db.Close()
 
+	// Ginのデフォルトルーターを初期化
 	r := gin.Default()
 
-	// Serve HTML page for root ("/")
+	// HTMLファイルを読み込む（テンプレートを使用）
 	r.LoadHTMLFiles("templates/index.html")
+
+	// ルート（"/"）でHTMLを表示
 	r.GET("/", func(c *gin.Context) {
 		c.HTML(http.StatusOK, "index.html", nil)
 	})
 
+	// 静的ファイルを"/assets"で提供
 	r.Static("/assets", "./assets")
 
-	// Get all tasks
+	// タスク一覧を取得
 	r.GET("/tasks", func(c *gin.Context) {
 		var tasks []Task
 		rows, err := db.Query("SELECT id, text, type FROM tasks")
@@ -65,34 +83,41 @@ func main() {
 		}
 		defer rows.Close()
 
+		// データベースの行をtasksに追加
 		for rows.Next() {
 			var task Task
 			if err := rows.Scan(&task.ID, &task.Text, &task.Type); err != nil {
-				log.Fatal(err)
+				log.Println("Error scanning task:", err)
+				continue
 			}
 			tasks = append(tasks, task)
 		}
+
+		// タスク一覧をJSONで返す
 		c.JSON(http.StatusOK, tasks)
 	})
 
-	// Create new task
+	// 新しいタスクを作成
 	r.POST("/tasks", func(c *gin.Context) {
 		var task Task
+		// リクエストボディからタスク情報をバインド
 		if err := c.ShouldBindJSON(&task); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid data"})
 			return
 		}
 
+		// データベースにタスクを保存
 		_, err := db.Exec("INSERT INTO tasks (text, type) VALUES ($1, $2)", task.Text, task.Type)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to save task"})
 			return
 		}
 
+		// 成功メッセージを返す
 		c.JSON(http.StatusCreated, gin.H{"message": "Task saved successfully"})
 	})
 
-	// Delete a task
+	// タスクを削除
 	r.DELETE("/tasks/:id", func(c *gin.Context) {
 		id := c.Param("id")
 		_, err := db.Exec("DELETE FROM tasks WHERE id = $1", id)
@@ -101,9 +126,10 @@ func main() {
 			return
 		}
 
+		// 削除成功メッセージ
 		c.JSON(http.StatusOK, gin.H{"message": "Task deleted successfully"})
 	})
 
-	// Run the server
+	// サーバーをポート8080で起動
 	r.Run(":8080")
 }
