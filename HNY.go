@@ -131,5 +131,9 @@ func main() {
 	})
 
 	// サーバーをポート8080で起動
-	r.Run(":8080")
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080" // デフォルトポート
+	}
+	r.Run(":" + port)
 }
