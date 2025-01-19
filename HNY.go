@@ -217,7 +217,7 @@ func main() {
 
 	// GET / ルートを設定
 	r.GET("/", func(c *gin.Context) {
-		c.HTML(http.StatusOK, "Log.html", gin.H{
+		c.HTML(http.StatusOK, "login.html", gin.H{
 			"title":      "ログインページ",
 			"action":     "/login",
 			"buttonText": "ログイン",
@@ -226,7 +226,7 @@ func main() {
 
 	// /register へのアクセスを処理
 	r.GET("/register", func(c *gin.Context) {
-		c.HTML(http.StatusOK, "Log.html", gin.H{
+		c.HTML(http.StatusOK, "login.html", gin.H{
 			"title":      "アカウント作成ページ",
 			"action":     "/register",
 			"buttonText": "登録",

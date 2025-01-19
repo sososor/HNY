@@ -72,7 +72,7 @@
     
         // 認証後にAPIからデータを取得
         function fetchTasks() {
-            var apiUrl = 'http://example.com/api'; // APIのURL
+            var apiUrl = 'https://hny-production.up.railway.app/index'; // APIのURL
             var authToken = localStorage.getItem('authToken'); // ローカルストレージからトークンを取得
     
             if (!authToken) {
@@ -81,7 +81,7 @@
             }
     
             // tasks APIからデータを取得する
-            fetch(`${apiUrl}/tasks`, {
+            fetch(`${apiUrl}/index`, {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${authToken}`, // トークンをヘッダーに追加

@@ -116,12 +116,12 @@
     let mainGoalCount = 1;
     let subGoalCount = 1;
 
-    const apiUrl = 'http://localhost:8080';  // GoサーバーのURL
+    const apiUrl = 'https://hny-production.up.railway.app/';  // GoサーバーのURL
     let authToken = localStorage.getItem('authToken');
     
     if (!authToken) {
         alert("ログインが必要です！");
-        window.location.href = "login.html";  // ログインページにリダイレクト
+        window.location.href = "Login.html";  // ログインページにリダイレクト
     }
 
     // タスクを表示
@@ -213,7 +213,7 @@
     // ログアウト機能
     function logout() {
         localStorage.removeItem('authToken');
-        window.location.href = "Log.html";  // ログインページにリダイレクト
+        window.location.href = "login.html";  // ログインページにリダイレクト
     }
 </script>
 
