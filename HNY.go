@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt"
 )
 
 // ユーザー情報を保持する構造体
