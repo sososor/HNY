@@ -1,5 +1,5 @@
 # 基本となるGoイメージを使用
-FROM golang:1.20
+FROM golang:1.21
 
 # 作業ディレクトリを設定
 WORKDIR /app
