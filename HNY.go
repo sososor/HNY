@@ -75,11 +75,19 @@ func validateJWT(c *gin.Context) {
 	}
 
 	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+	log.Println("Token string:", tokenString) // トークン文字列をログに出力
+
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		return jwtKey, nil
 	})
+	if err != nil {
+		log.Println("Error parsing token:", err)
+		c.JSON(http.StatusUnauthorized, gin.H{"message": "Invalid or expired token"})
+		c.Abort()
+		return
+	}
 
-	if err != nil || !token.Valid || isTokenBlacklisted(tokenString) {
+	if !token.Valid || isTokenBlacklisted(tokenString) {
 		c.JSON(http.StatusUnauthorized, gin.H{"message": "Invalid or expired token"})
 		c.Abort()
 		return

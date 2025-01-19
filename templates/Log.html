@@ -48,17 +48,57 @@
             })
             .then(response => response.json())
             .then(data => {
+                // サーバーからのレスポンスに基づいて動作
                 if (data.message === "User registered successfully" || data.message === "Login successful") {
+                    // トークンがレスポンスに含まれている場合、ローカルストレージに保存
+                    if (data.token) {
+                        localStorage.setItem('authToken', data.token);
+                    }
+    
                     // 成功した場合にリダイレクト
                     if (data.redirectUrl) {
                         window.location.href = data.redirectUrl;
+                    } else {
+                        // APIからデータを取得する
+                        fetchTasks();
                     }
+    
                 } else {
                     alert("エラー: " + data.message);
                 }
             })
             .catch(error => console.error("エラーが発生しました:", error));
         });
+    
+        // 認証後にAPIからデータを取得
+        function fetchTasks() {
+            var apiUrl = 'http://example.com/api'; // APIのURL
+            var authToken = localStorage.getItem('authToken'); // ローカルストレージからトークンを取得
+    
+            if (!authToken) {
+                console.error("認証トークンがありません。");
+                return;
+            }
+    
+            // tasks APIからデータを取得する
+            fetch(`${apiUrl}/tasks`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${authToken}`, // トークンをヘッダーに追加
+                },
+            })
+            .then(response => {
+                if (response.ok) {
+                    return response.json();
+                } else {
+                    throw new Error('認証エラー');
+                }
+            })
+            .then(data => {
+                console.log(data); // APIからのデータをコンソールに表示
+            })
+            .catch(error => console.error('エラー:', error));
+        }
     </script>
     
 </body>
