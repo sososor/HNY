@@ -33,19 +33,26 @@
             var password = document.getElementById('password').value;
             var actionUrl = this.action;
     
-            var data = new FormData();
-            data.append("username", username);
-            data.append("password", password);
+            var data = {
+                username: username,
+                password: password
+            };
     
-            // フォームデータを送信
+            // フォームデータをJSONとして送信
             fetch(actionUrl, {
                 method: 'POST',
-                body: data // JSONではなく、FormDataを使用
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data)
             })
             .then(response => response.json())
             .then(data => {
-                if (data.message === "User registered successfully") {
-                    window.location.href = data.redirectUrl || '/';
+                if (data.message === "User registered successfully" || data.message === "Login successful") {
+                    // 成功した場合にリダイレクト
+                    if (data.redirectUrl) {
+                        window.location.href = data.redirectUrl;
+                    }
                 } else {
                     alert("エラー: " + data.message);
                 }

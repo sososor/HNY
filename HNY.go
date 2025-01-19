@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -38,6 +39,9 @@ var users = []User{
 	{Username: "user2", Password: "$2a$10$w3FceT5FS9fMw.WsXg6z4uWogd8DPVpI6Sckpw6rK2mtmb3rOxkAu"}, // password456
 }
 
+// 仮のブラックリストでJWTトークンを無効化
+var tokenBlacklist = make(map[string]bool)
+
 // JWTを生成する関数
 func generateJWT(username string) (string, error) {
 	// JWTトークンのペイロード
@@ -49,6 +53,40 @@ func generateJWT(username string) (string, error) {
 	// トークンを生成
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString(jwtKey)
+}
+
+// JWTトークンを無効化する関数
+func invalidateJWT(token string) {
+	tokenBlacklist[token] = true
+}
+
+// JWTトークンが無効化されているか確認する関数
+func isTokenBlacklisted(token string) bool {
+	return tokenBlacklist[token]
+}
+
+// JWTトークンの検証
+func validateJWT(c *gin.Context) {
+	authHeader := c.GetHeader("Authorization")
+	if authHeader == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"message": "Authorization header missing"})
+		c.Abort()
+		return
+	}
+
+	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		return jwtKey, nil
+	})
+
+	if err != nil || !token.Valid || isTokenBlacklisted(tokenString) {
+		c.JSON(http.StatusUnauthorized, gin.H{"message": "Invalid or expired token"})
+		c.Abort()
+		return
+	}
+
+	c.Set("username", token.Claims.(jwt.MapClaims)["sub"])
+	c.Next()
 }
 
 // ユーザーをデータベース（仮の配列）で検索する関数
@@ -68,7 +106,7 @@ func checkPasswordHash(inputPassword, storedPassword string) bool {
 	return err == nil
 }
 
-// / 新規ユーザーを追加する関数
+// 新規ユーザーを追加する関数
 func createUser(username, password string) (User, error) {
 	// パスワードのハッシュ化
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
@@ -87,16 +125,12 @@ func createUser(username, password string) (User, error) {
 func login(c *gin.Context) {
 	var loginData LoginRequest
 
-	// リクエストボディをJSONとしてバインド
 	if err := c.ShouldBindJSON(&loginData); err != nil {
-		log.Println("Login bind error:", err) // エラーログを追加
+		log.Println("Login bind error:", err)
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid request body"})
 		return
 	}
 
-	log.Println("Login request received:", loginData) // リクエストの内容をログに出力
-
-	// ユーザー情報の取得
 	user, err := findUserByUsername(loginData.Username)
 	if err != nil {
 		log.Println("User not found:", err)
@@ -104,14 +138,12 @@ func login(c *gin.Context) {
 		return
 	}
 
-	// パスワードの確認
 	if !checkPasswordHash(loginData.Password, user.Password) {
 		log.Println("Password mismatch")
 		c.JSON(http.StatusUnauthorized, gin.H{"message": "Invalid username or password"})
 		return
 	}
 
-	// JWTトークンの生成
 	token, err := generateJWT(user.Username)
 	if err != nil {
 		log.Println("Error generating JWT:", err)
@@ -119,10 +151,10 @@ func login(c *gin.Context) {
 		return
 	}
 
-	// 成功レスポンス
 	c.JSON(http.StatusOK, gin.H{
-		"message": "Login successful",
-		"token":   token,
+		"message":     "Login successful",
+		"token":       token,
+		"redirectUrl": "/index", // リダイレクト先のURLを指定
 	})
 }
 
@@ -130,21 +162,18 @@ func login(c *gin.Context) {
 func register(c *gin.Context) {
 	var registerData RegisterRequest
 
-	// リクエストボディをJSONとしてバインド
 	if err := c.ShouldBindJSON(&registerData); err != nil {
 		log.Println("Register bind error:", err)
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid request body"})
 		return
 	}
 
-	// 既存のユーザー名と重複していないか確認
 	_, err := findUserByUsername(registerData.Username)
 	if err == nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Username already taken"})
 		return
 	}
 
-	// 新規ユーザーの作成
 	newUser, err := createUser(registerData.Username, registerData.Password)
 	if err != nil {
 		log.Println("Error creating user:", err)
@@ -152,14 +181,24 @@ func register(c *gin.Context) {
 		return
 	}
 
-	// 成功レスポンス
 	c.JSON(http.StatusOK, gin.H{
-		"message": "User registered successfully",
-		"user":    newUser,
+		"message":     "User registered successfully",
+		"user":        newUser,
+		"redirectUrl": "/", // 登録後にログインページにリダイレクト
 	})
+}
 
-	log.Println("Register request received:", registerData) // 受け取ったリクエストデータをログに出力
+// ログアウトエンドポイント
+func logout(c *gin.Context) {
+	authHeader := c.GetHeader("Authorization")
+	if authHeader == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Authorization header missing"})
+		return
+	}
 
+	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+	invalidateJWT(tokenString) // トークンを無効化
+	c.JSON(http.StatusOK, gin.H{"message": "Logout successful"})
 }
 
 func main() {
@@ -185,6 +224,16 @@ func main() {
 			"buttonText": "登録",
 		})
 	})
+
+	// 認証が必要なページ
+	r.GET("/index", validateJWT, func(c *gin.Context) {
+		c.HTML(http.StatusOK, "index.html", gin.H{
+			"title": "ホームページ", // ここでタイトルなどを設定
+		})
+	})
+
+	// ログアウトエンドポイントを設定
+	r.POST("/logout", logout)
 
 	// /login への POST リクエストを処理
 	r.POST("/login", login)
