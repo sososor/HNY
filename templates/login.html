@@ -28,22 +28,21 @@
     <script>
         document.getElementById('authForm').addEventListener('submit', function(e) {
             e.preventDefault(); // 通常のフォーム送信を防ぐ
-    
+
             var username = document.getElementById('username').value;
             var password = document.getElementById('password').value;
-            var actionUrl = this.action;
-    
+            var actionUrl = this.action; // フォームのactionからURL取得
+
             var data = {
                 username: username,
                 password: password
             };
-    
+
             // フォームデータをJSONとして送信
             fetch(actionUrl, {
                 method: 'POST',
                 headers: {
-        'Authorization': `Bearer ${authToken}`, // トークンをAuthorizationヘッダーに追加
-        'Content-Type': 'application/json',
+                    'Content-Type': 'application/json',
                 },
                 body: JSON.stringify(data)
             })
@@ -55,7 +54,7 @@
                     if (data.token) {
                         localStorage.setItem('authToken', data.token);
                     }
-    
+
                     // 成功した場合にリダイレクト
                     if (data.redirectUrl) {
                         window.location.href = data.redirectUrl;
@@ -63,45 +62,39 @@
                         // APIからデータを取得する
                         fetchTasks();
                     }
-    
+
                 } else {
                     alert("エラー: " + data.message);
                 }
             })
             .catch(error => console.error("エラーが発生しました:", error));
         });
-    
+
         // 認証後にAPIからデータを取得
-    async function fetchTasks() {
-    const apiUrl = 'https://hny-production.up.railway.app/index';  // 本番環境のURL
-    const authToken = localStorage.getItem('authToken'); // ローカルストレージからトークンを取得
+        async function fetchTasks() {
+            const apiUrl = 'http://localhost:8080/index';  // /indexのAPIエンドポイントURL
+            const authToken = localStorage.getItem('authToken'); // ローカルストレージからトークンを取得
 
-    if (!authToken) {
-        alert("認証トークンがありません。ログインしてください。");
-        window.location.href = "Login.html";  // ログインページにリダイレクト
-        return;
-    }
-
-    try {
-        // APIリクエスト
-        const response = await fetch(apiUrl, {
-            method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${authToken}`, // トークンをAuthorizationヘッダーに追加
-                'Content-Type': 'application/json',  // 必要な場合はJSON形式を指定
-            }
-        });
-
-        if (!response.ok) {
-            throw new Error('認証エラー: ' + response.statusText);
-        }
-
-        const data = await response.json();
-        console.log(data); // APIからのデータをコンソールに表示
-    } catch (error) {
-        console.error('エラー:', error);
-    }
+if (!authToken) {
+    alert("認証トークンがありません。ログインしてください。");
+    window.location.href = "/";  // トークンがない場合はログインページにリダイレクト
+    return;
 }
+
+fetch(apiUrl, {
+    method: 'GET',
+    headers: {
+        'Authorization': `Bearer ${authToken}`,  // トークンをヘッダーに追加
+        'Content-Type': 'application/json',
+    }
+})
+.then(response => response.json())
+.then(data => {
+    console.log(data); // APIのレスポンスをログに出力
+})
+.catch(error => console.error('エラー:', error));
+
+        }
 
     </script>
     

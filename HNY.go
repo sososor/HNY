@@ -2,15 +2,49 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"strings"
 	"time"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt"
 	"golang.org/x/crypto/bcrypt"
 )
+
+// JWTのトークンを検証するミドルウェア
+func authRequired() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		tokenString := c.GetHeader("Authorization")
+		if tokenString == "" {
+			c.JSON(http.StatusUnauthorized, gin.H{"message": "Authorization header is missing"})
+			c.Abort()
+			return
+		}
+
+		// "Bearer <token>" 形式のトークンを処理
+		tokenString = tokenString[len("Bearer "):]
+
+		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+			// JWTの署名方法がHS256かを確認
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+			}
+			return jwtKey, nil // jwtSecret を jwtKey に変更
+		})
+
+		if err != nil || !token.Valid {
+			c.JSON(http.StatusUnauthorized, gin.H{"message": "Invalid token"})
+			c.Abort()
+			return
+		}
+
+		// トークンが有効であれば、次のハンドラーを呼び出す
+		c.Next()
+	}
+}
 
 // ユーザー情報を保持する構造体（emailフィールドは削除）
 type User struct {
@@ -170,7 +204,7 @@ func login(c *gin.Context) {
 func register(c *gin.Context) {
 	var registerData RegisterRequest
 
-	if err := c.ShouldBindJSON(&registerData); err != nil {
+	if err := c.ShouldBind(&registerData); err != nil {
 		log.Println("Register bind error:", err)
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid request body"})
 		return
@@ -211,7 +245,7 @@ func logout(c *gin.Context) {
 
 func main() {
 	r := gin.Default()
-
+	r.Use(cors.Default())
 	// HTMLテンプレートを読み込む
 	r.LoadHTMLGlob("templates/*")
 
@@ -233,11 +267,9 @@ func main() {
 		})
 	})
 
-	// 認証が必要なページ
-	r.GET("/index", validateJWT, func(c *gin.Context) {
-		c.HTML(http.StatusOK, "index.html", gin.H{
-			"title": "ホームページ", // ここでタイトルなどを設定
-		})
+	// 認証を要求するルートにミドルウェアを適用
+	r.GET("/index", authRequired(), func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"message": "Welcome to the protected /index route"})
 	})
 
 	// ログアウトエンドポイントを設定
