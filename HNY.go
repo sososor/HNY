@@ -68,11 +68,12 @@ func checkPasswordHash(inputPassword, storedPassword string) bool {
 	return err == nil
 }
 
-// 新規ユーザーを追加する関数
+// / 新規ユーザーを追加する関数
 func createUser(username, password string) (User, error) {
 	// パスワードのハッシュ化
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
+		log.Println("Error hashing password:", err) // エラーログを追加
 		return User{}, err
 	}
 
@@ -156,6 +157,9 @@ func register(c *gin.Context) {
 		"message": "User registered successfully",
 		"user":    newUser,
 	})
+
+	log.Println("Register request received:", registerData) // 受け取ったリクエストデータをログに出力
+
 }
 
 func main() {
