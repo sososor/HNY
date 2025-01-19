@@ -1,8 +1,6 @@
 module your_project_name
 
-go 1.21
-
-toolchain go1.23.3
+go 1.21.0
 
 require (
 	github.com/gin-gonic/gin v1.10.0
