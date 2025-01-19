@@ -71,34 +71,37 @@
         });
     
         // 認証後にAPIからデータを取得
-        function fetchTasks() {
-            var apiUrl = 'https://hny-production.up.railway.app/index'; // APIのURL
-            var authToken = localStorage.getItem('authToken'); // ローカルストレージからトークンを取得
-    
-            if (!authToken) {
-                console.error("認証トークンがありません。");
-                return;
+        async function fetchTasks() {
+    const apiUrl = 'https://hny-production.up.railway.app/index';  // 本番環境のURL
+    const authToken = localStorage.getItem('authToken'); // ローカルストレージからトークンを取得
+
+    if (!authToken) {
+        alert("認証トークンがありません。ログインしてください。");
+        window.location.href = "Login.html";  // ログインページにリダイレクト
+        return;
+    }
+
+    try {
+        // APIリクエスト
+        const response = await fetch(apiUrl, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${authToken}`, // トークンをAuthorizationヘッダーに追加
+                'Content-Type': 'application/json',  // 必要な場合はJSON形式を指定
             }
-    
-            // tasks APIからデータを取得する
-            fetch(`${apiUrl}/index`, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${authToken}`, // トークンをヘッダーに追加
-                },
-            })
-            .then(response => {
-                if (response.ok) {
-                    return response.json();
-                } else {
-                    throw new Error('認証エラー');
-                }
-            })
-            .then(data => {
-                console.log(data); // APIからのデータをコンソールに表示
-            })
-            .catch(error => console.error('エラー:', error));
+        });
+
+        if (!response.ok) {
+            throw new Error('認証エラー: ' + response.statusText);
         }
+
+        const data = await response.json();
+        console.log(data); // APIからのデータをコンソールに表示
+    } catch (error) {
+        console.error('エラー:', error);
+    }
+}
+
     </script>
     
 </body>
