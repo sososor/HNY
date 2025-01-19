@@ -11,14 +11,20 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// ユーザー情報を保持する構造体
+// ユーザー情報を保持する構造体（emailフィールドは削除）
 type User struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
 }
 
-// リクエストデータの構造体
+// リクエストデータの構造体（emailフィールドは削除）
 type LoginRequest struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+// アカウント作成リクエストデータの構造体（emailフィールドは削除）
+type RegisterRequest struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
 }
@@ -60,6 +66,20 @@ func checkPasswordHash(inputPassword, storedPassword string) bool {
 	// bcryptでパスワードをハッシュ化して比較
 	err := bcrypt.CompareHashAndPassword([]byte(storedPassword), []byte(inputPassword))
 	return err == nil
+}
+
+// 新規ユーザーを追加する関数
+func createUser(username, password string) (User, error) {
+	// パスワードのハッシュ化
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return User{}, err
+	}
+
+	// 新しいユーザーを作成
+	newUser := User{Username: username, Password: string(hashedPassword)}
+	users = append(users, newUser)
+	return newUser, nil
 }
 
 // ログインエンドポイント
@@ -105,6 +125,39 @@ func login(c *gin.Context) {
 	})
 }
 
+// アカウント作成エンドポイント
+func register(c *gin.Context) {
+	var registerData RegisterRequest
+
+	// リクエストボディをJSONとしてバインド
+	if err := c.ShouldBindJSON(&registerData); err != nil {
+		log.Println("Register bind error:", err)
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid request body"})
+		return
+	}
+
+	// 既存のユーザー名と重複していないか確認
+	_, err := findUserByUsername(registerData.Username)
+	if err == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Username already taken"})
+		return
+	}
+
+	// 新規ユーザーの作成
+	newUser, err := createUser(registerData.Username, registerData.Password)
+	if err != nil {
+		log.Println("Error creating user:", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Error creating user"})
+		return
+	}
+
+	// 成功レスポンス
+	c.JSON(http.StatusOK, gin.H{
+		"message": "User registered successfully",
+		"user":    newUser,
+	})
+}
+
 func main() {
 	r := gin.Default()
 
@@ -131,6 +184,9 @@ func main() {
 
 	// /login への POST リクエストを処理
 	r.POST("/login", login)
+
+	// /register への POST リクエストを処理
+	r.POST("/register", register)
 
 	// サーバー起動
 	if err := r.Run(":8080"); err != nil {
