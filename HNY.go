@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-contrib/cors"
@@ -39,6 +40,7 @@ var users = []User{
 	{Username: "user2", Password: "$2a$10$w3FceT5FS9fMw.WsXg6z4uWogd8DPVpI6Sckpw6rK2mtmb3rOxkAu"}, // password456
 }
 
+// generateJWT は指定したユーザー名で JWT を生成します。
 func generateJWT(username string) (string, error) {
 	claims := &jwt.StandardClaims{
 		Subject:   username,
@@ -48,6 +50,7 @@ func generateJWT(username string) (string, error) {
 	return token.SignedString(jwtKey)
 }
 
+// findUserByUsername はユーザー名からユーザーを検索します。
 func findUserByUsername(username string) (*User, error) {
 	for _, user := range users {
 		if user.Username == username {
@@ -57,11 +60,13 @@ func findUserByUsername(username string) (*User, error) {
 	return nil, errors.New("user not found")
 }
 
+// checkPasswordHash は bcrypt を使用してパスワードが一致するかをチェックします。
 func checkPasswordHash(inputPassword, storedPassword string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(storedPassword), []byte(inputPassword))
 	return err == nil
 }
 
+// createUser は新規ユーザーを作成します。
 func createUser(username, password string) (User, error) {
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
@@ -73,6 +78,7 @@ func createUser(username, password string) (User, error) {
 	return newUser, nil
 }
 
+// login エンドポイントはユーザー認証を行い、JWT を返します。
 func login(c *gin.Context) {
 	var loginData LoginRequest
 	if err := c.ShouldBindJSON(&loginData); err != nil {
@@ -104,6 +110,7 @@ func login(c *gin.Context) {
 	})
 }
 
+// register エンドポイントは新規ユーザーを登録します。
 func register(c *gin.Context) {
 	var registerData RegisterRequest
 	if err := c.ShouldBind(&registerData); err != nil {
@@ -130,23 +137,66 @@ func register(c *gin.Context) {
 }
 
 // -----------------------
-// タスク関連の定義
+// 認証ミドルウェア
 // -----------------------
 
+func authRequired() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		tokenString := c.GetHeader("Authorization")
+		if tokenString == "" {
+			c.JSON(http.StatusUnauthorized, gin.H{"message": "Authorization header is missing"})
+			c.Abort()
+			return
+		}
+		tokenString = strings.TrimSpace(strings.TrimPrefix(tokenString, "Bearer "))
+		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+			return jwtKey, nil
+		})
+		if err != nil || !token.Valid {
+			c.JSON(http.StatusUnauthorized, gin.H{"message": "Invalid token"})
+			c.Abort()
+			return
+		}
+		if claims, ok := token.Claims.(jwt.MapClaims); ok {
+			// claims["sub"] をユーザー名としてコンテキストにセット
+			c.Set("username", claims["sub"])
+		} else {
+			c.JSON(http.StatusUnauthorized, gin.H{"message": "Invalid token claims"})
+			c.Abort()
+			return
+		}
+		c.Next()
+	}
+}
+
+// -----------------------
+// タスク関連の定義（ユーザー毎の管理）
+// -----------------------
+
+// Task はタスクの構造体です。
 type Task struct {
 	ID      int    `json:"id"`
 	Content string `json:"content"`
 	Type    string `json:"type"` // "habit", "main", "sub"
 }
 
-var tasks []Task
+// userTasks は、各ユーザーごとにタスクを保持するマップです。
+var userTasks = make(map[string][]Task)
 var taskIDCounter int = 1
 
+// getTasks は、認証済みユーザーのタスク一覧を返します。
 func getTasks(c *gin.Context) {
-	c.JSON(http.StatusOK, tasks)
+	username := c.GetString("username")
+	tasksForUser, ok := userTasks[username]
+	if !ok {
+		tasksForUser = []Task{}
+	}
+	c.JSON(http.StatusOK, tasksForUser)
 }
 
+// addTask は、認証済みユーザーに新規タスクを追加します。
 func addTask(c *gin.Context) {
+	username := c.GetString("username")
 	var newTask Task
 	if err := c.ShouldBindJSON(&newTask); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid request body"})
@@ -154,20 +204,29 @@ func addTask(c *gin.Context) {
 	}
 	newTask.ID = taskIDCounter
 	taskIDCounter++
-	tasks = append(tasks, newTask)
+	// 各ユーザーごとのタスクスライスに追加
+	userTasks[username] = append(userTasks[username], newTask)
 	c.JSON(http.StatusOK, newTask)
 }
 
+// deleteTask は、認証済みユーザーの指定されたタスクを削除します。
 func deleteTask(c *gin.Context) {
+	username := c.GetString("username")
 	idParam := c.Param("id")
 	id, err := strconv.Atoi(idParam)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid task ID"})
 		return
 	}
-	for i, task := range tasks {
+	tasksForUser, ok := userTasks[username]
+	if !ok {
+		c.JSON(http.StatusNotFound, gin.H{"message": "Task not found"})
+		return
+	}
+	for i, task := range tasksForUser {
 		if task.ID == id {
-			tasks = append(tasks[:i], tasks[i+1:]...)
+			// スライスから削除
+			userTasks[username] = append(tasksForUser[:i], tasksForUser[i+1:]...)
 			c.JSON(http.StatusOK, gin.H{"message": "Task deleted"})
 			return
 		}
@@ -180,6 +239,7 @@ func main() {
 	r.Use(cors.Default())
 	r.LoadHTMLGlob("templates/*")
 
+	// ルート "/" ではログインページ (login.html) を表示
 	r.GET("/", func(c *gin.Context) {
 		c.HTML(http.StatusOK, "login.html", gin.H{
 			"title":      "ログインページ",
@@ -188,6 +248,7 @@ func main() {
 		})
 	})
 
+	// /register ではアカウント作成用のページ (login.html) を表示
 	r.GET("/register", func(c *gin.Context) {
 		c.HTML(http.StatusOK, "login.html", gin.H{
 			"title":      "アカウント作成ページ",
@@ -204,8 +265,9 @@ func main() {
 	r.POST("/login", login)
 	r.POST("/register", register)
 
-	// タスク管理エンドポイント
+	// タスク管理エンドポイント（認証ミドルウェアを適用）
 	taskGroup := r.Group("/tasks")
+	taskGroup.Use(authRequired())
 	{
 		taskGroup.GET("", getTasks)
 		taskGroup.POST("", addTask)
