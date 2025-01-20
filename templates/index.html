@@ -1,3 +1,136 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>2025年 新年の抱負と習慣</title>
+  <style>
+    body {
+      font-family: 'Helvetica Neue', sans-serif;
+      background-color: #f0f4f8;
+      color: #333;
+      margin: 0;
+      padding: 20px;
+    }
+    h1, h2 {
+      text-align: center;
+      color: #003366;
+      margin-bottom: 20px;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background-color: #fff;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    textarea {
+      width: 100%;
+      height: 60px;
+      padding: 10px;
+      margin-bottom: 15px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 16px;
+      background-color: #f7f9fc;
+    }
+    button {
+      display: inline-block;
+      padding: 8px 12px;
+      background-color: #005b96;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: background-color 0.3s ease;
+      margin-left: 5px;
+    }
+    button:hover {
+      background-color: #004080;
+    }
+    .save-button {
+      display: block;
+      width: 100%;
+      padding: 12px;
+      background-color: #005b96;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 16px;
+      margin-bottom: 20px;
+      transition: background-color 0.3s ease;
+    }
+    .save-button:hover {
+      background-color: #004080;
+    }
+    ul {
+      list-style-type: none;
+      padding-left: 0;
+    }
+    li {
+      background-color: #e6f0ff;
+      padding: 10px;
+      margin-bottom: 10px;
+      border-radius: 5px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    .item-number {
+      font-weight: bold;
+      margin-right: 10px;
+    }
+    .item-content {
+      flex-grow: 1;
+    }
+    .controls {
+      display: flex;
+      gap: 5px;
+    }
+    .logout-btn {
+      display: block;
+      width: 100%;
+      padding: 12px;
+      background-color: #ff4d4d;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 16px;
+      margin-top: 30px;
+      transition: background-color 0.3s ease;
+    }
+    .logout-btn:hover {
+      background-color: #e60000;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>2025年 新年の抱負と習慣</h1>
+  
+  <h2>習慣</h2>
+  <textarea id="habitInput" placeholder="習慣を入力してください..."></textarea>
+  <button class="save-button" onclick="addItem('habit')">保存</button>
+  <ul id="habits-list"></ul>
+
+  <h2>メインの抱負</h2>
+  <textarea id="mainGoalInput" placeholder="メインの抱負を入力してください..."></textarea>
+  <button class="save-button" onclick="addItem('main')">保存</button>
+  <ul id="main-goals-list"></ul>
+
+  <h2>サブの抱負</h2>
+  <textarea id="subGoalInput" placeholder="サブの抱負を入力してください..."></textarea>
+  <button class="save-button" onclick="addItem('sub')">保存</button>
+  <ul id="sub-goals-list"></ul>
+
+  <button class="logout-btn" onclick="logout()">ログアウト</button>
+</div>
+
 <script>
     // API URL は相対パス(デプロイ環境に合わせるため)
     const apiUrl = window.location.origin;
