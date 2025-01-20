@@ -132,21 +132,20 @@
 </div>
 
 <script>
-  const apiUrl = "";
+  // API URL は相対パス(デプロイ環境に合わせるため)
+  const apiUrl = window.location.origin;
   let authToken = localStorage.getItem('authToken');
   if (!authToken) {
       alert("ログインが必要です！");
       window.location.href = "login.html";
   }
 
-  // タスク取得
   async function fetchTasks() {
       try {
           const response = await fetch(`${apiUrl}/tasks`, {
               headers: { 'Authorization': `Bearer ${authToken}` },
           });
           const tasks = await response.json();
-          // リストをクリアしてから追加
           document.getElementById("habits-list").innerHTML = "";
           document.getElementById("main-goals-list").innerHTML = "";
           document.getElementById("sub-goals-list").innerHTML = "";
@@ -156,7 +155,6 @@
       }
   }
 
-  // リストにタスクを追加（番号は各カテゴリーごとに更新）
   function addTaskToList(task) {
       let ul;
       if (task.type === "habit") {
@@ -166,57 +164,43 @@
       } else {
           ul = document.getElementById("sub-goals-list");
       }
-      
-      // li 要素を作成
       let li = document.createElement("li");
 
-      // 番号表示用 span
       let numberSpan = document.createElement("span");
       numberSpan.className = "item-number";
-      // 番号は後で updateListNumbers 関数で設定
+      // 番号は後で updateListNumbers で更新
 
-      // タスク内容用 span
       let contentSpan = document.createElement("span");
       contentSpan.className = "item-content";
       contentSpan.textContent = task.content;
 
-      // 操作用 div
       let controlsDiv = document.createElement("div");
       controlsDiv.className = "controls";
 
-      // 上へ移動ボタン
       let upButton = document.createElement("button");
       upButton.textContent = "↑";
       upButton.onclick = function() { moveUp(li); };
 
-      // 下へ移動ボタン
       let downButton = document.createElement("button");
       downButton.textContent = "↓";
       downButton.onclick = function() { moveDown(li); };
 
-      // 削除ボタン
       let deleteButton = document.createElement("button");
       deleteButton.textContent = "削除";
       deleteButton.onclick = function() { deleteTask(task.id); };
 
-      // 操作用ボタンを controlsDiv に追加
       controlsDiv.appendChild(upButton);
       controlsDiv.appendChild(downButton);
       controlsDiv.appendChild(deleteButton);
 
-      // li に番号、内容、操作ボタンを追加
       li.appendChild(numberSpan);
       li.appendChild(contentSpan);
       li.appendChild(controlsDiv);
 
-      // li をリストに追加
       ul.appendChild(li);
-
-      // 番号更新
       updateListNumbers(ul);
   }
 
-  // 各リスト内の li 要素に対し、上から連番を設定する
   function updateListNumbers(ul) {
       let items = ul.getElementsByTagName("li");
       for (let i = 0; i < items.length; i++) {
@@ -225,7 +209,6 @@
       }
   }
 
-  // 上に移動
   function moveUp(li) {
       let prev = li.previousElementSibling;
       if (prev) {
@@ -234,7 +217,6 @@
       }
   }
 
-  // 下に移動
   function moveDown(li) {
       let next = li.nextElementSibling;
       if (next) {
@@ -250,7 +232,7 @@
       } else if (type === 'sub') {
           inputId = 'subGoalInput';
       } else {
-          inputId = type + 'Input'; // "habitInput"の場合
+          inputId = type + 'Input';
       }
       const input = document.getElementById(inputId);
       const content = input.value.trim();
@@ -283,8 +265,7 @@
               headers: { 'Authorization': `Bearer ${authToken}` },
           });
           if (response.ok) {
-              alert('タスクが削除されました');
-              // タスク一覧を再取得して表示番号を再設定
+              // 確認のアラートを削除して、直接タスク一覧を更新
               fetchTasks();
           } else { 
               alert('タスク削除のエラー'); 
