@@ -1,102 +1,52 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{.title}}</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{.title}}</title>
 </head>
 <body>
-    <h1>{{.title}}</h1>
-    
-    <form id="authForm" action="{{.action}}" method="POST">
-        <label for="username">ユーザー名:</label>
-        <input type="text" id="username" name="username" required><br><br>
-
-        <label for="password">パスワード:</label>
-        <input type="password" id="password" name="password" required><br><br>
-
-        <button type="submit">{{.buttonText}}</button>
-    </form>
-
-    <br>
-    {{if eq .title "ログインページ"}}
-        <a href="/register">アカウント作成</a>
-    {{else}}
-        <a href="/">ログイン画面に戻る</a>
-    {{end}}
-
-    <script>
-        document.getElementById('authForm').addEventListener('submit', function(e) {
-            e.preventDefault(); // 通常のフォーム送信を防ぐ
-
-            var username = document.getElementById('username').value;
-            var password = document.getElementById('password').value;
-            var actionUrl = this.action; // フォームのactionからURL取得
-
-            var data = {
-                username: username,
-                password: password
-            };
-
-            // フォームデータをJSONとして送信
-            fetch(actionUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(data)
-            })
-            .then(response => response.json())
-            .then(data => {
-                // サーバーからのレスポンスに基づいて動作
-                if (data.message === "User registered successfully" || data.message === "Login successful") {
-                    // トークンがレスポンスに含まれている場合、ローカルストレージに保存
-                    if (data.token) {
-                        localStorage.setItem('authToken', data.token);
-                    }
-
-                    // 成功した場合にリダイレクト
-                    if (data.redirectUrl) {
-                        window.location.href = data.redirectUrl;
-                    } else {
-                        // APIからデータを取得する
-                        fetchTasks();
-                    }
-
-                } else {
-                    alert("エラー: " + data.message);
-                }
-            })
-            .catch(error => console.error("エラーが発生しました:", error));
-        });
-
-        // 認証後にAPIからデータを取得
-        async function fetchTasks() {
-            const apiUrl = 'http://localhost:8080/index';  // /indexのAPIエンドポイントURL
-            const authToken = localStorage.getItem('authToken'); // ローカルストレージからトークンを取得
-
-if (!authToken) {
-    alert("認証トークンがありません。ログインしてください。");
-    window.location.href = "/";  // トークンがない場合はログインページにリダイレクト
-    return;
-}
-
-fetch(apiUrl, {
-    method: 'GET',
-    headers: {
-        'Authorization': `Bearer ${authToken}`,  // トークンをヘッダーに追加
-        'Content-Type': 'application/json',
-    }
-})
-.then(response => response.json())
-.then(data => {
-    console.log(data); // APIのレスポンスをログに出力
-})
-.catch(error => console.error('エラー:', error));
-
+  <h1>{{.title}}</h1>
+  <form id="authForm" action="{{.action}}" method="POST">
+    <label for="username">ユーザー名:</label>
+    <input type="text" id="username" name="username" required><br><br>
+    <label for="password">パスワード:</label>
+    <input type="password" id="password" name="password" required><br><br>
+    <button type="submit">{{.buttonText}}</button>
+  </form>
+  <br>
+  {{if eq .title "ログインページ"}}
+    <a href="/register">アカウント作成</a>
+  {{else}}
+    <a href="/">ログイン画面に戻る</a>
+  {{end}}
+  <script>
+    document.getElementById('authForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      var username = document.getElementById('username').value;
+      var password = document.getElementById('password').value;
+      var actionUrl = this.action;
+      var data = { username: username, password: password };
+      fetch(actionUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.message === "User registered successfully" || data.message === "Login successful") {
+          if (data.token) {
+            localStorage.setItem('authToken', data.token);
+          }
+          if (data.redirectUrl) {
+            window.location.href = data.redirectUrl;
+          }
+        } else {
+          alert("エラー: " + data.message);
         }
-
-    </script>
-    
+      })
+      .catch(error => console.error("エラーが発生しました:", error));
+    });
+  </script>
 </body>
 </html>
