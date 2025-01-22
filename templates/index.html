@@ -132,7 +132,6 @@
 </div>
 
 <script>
-    // API URL は相対パス（デプロイ環境に合わせるため）
     const apiUrl = window.location.origin;
     let authToken = localStorage.getItem('authToken');
     if (!authToken) {
@@ -146,7 +145,6 @@
                 headers: { 'Authorization': `Bearer ${authToken}` },
             });
             const tasks = await response.json();
-            // 各リストを一旦クリア
             document.getElementById("habits-list").innerHTML = "";
             document.getElementById("main-goals-list").innerHTML = "";
             document.getElementById("sub-goals-list").innerHTML = "";

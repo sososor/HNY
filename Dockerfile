@@ -6,8 +6,7 @@ WORKDIR /app
 
 # Goの依存関係をインストール
 COPY go.mod go.sum ./
-RUN go mod tidy
-RUN go mod download
+RUN go mod tidy && go mod download
 
 # アプリケーションのソースコードをコピー
 COPY . .

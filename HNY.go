@@ -22,6 +22,7 @@ import (
 var db *gorm.DB
 
 // User モデル（ユーザー登録・認証用）
+// 今回は一意インデックスとして "idx_users_username" を明示的に指定します。
 type User struct {
 	ID        uint   `gorm:"primaryKey"`
 	Username  string `gorm:"uniqueIndex:idx_users_username;not null"`
@@ -45,9 +46,9 @@ type Task struct {
 // JWT と認証関連
 // --------------------------
 
-var jwtKey = []byte("secret_key") // ※ 本番では環境変数などで管理
+var jwtKey = []byte("secret_key") // ※ 本番では環境変数等で管理してください
 
-// generateJWT は指定したユーザー名で JWT を生成します。
+// generateJWT は指定したユーザー名でJWTを生成します。
 func generateJWT(username string) (string, error) {
 	claims := &jwt.StandardClaims{
 		Subject:   username,
@@ -78,7 +79,6 @@ func authRequired() gin.HandlerFunc {
 			return
 		}
 		if claims, ok := token.Claims.(jwt.MapClaims); ok {
-			// claims["sub"] をユーザー名としてコンテキストにセット
 			c.Set("username", claims["sub"].(string))
 		} else {
 			c.JSON(http.StatusUnauthorized, gin.H{"message": "Invalid token claims"})
@@ -113,7 +113,7 @@ func findUserByUsername(username string) (*User, error) {
 	return &user, nil
 }
 
-// checkPasswordHash は bcrypt を使用してパスワードが一致するかをチェックします。
+// checkPasswordHash は bcrypt を使用してパスワードが一致するかチェックします。
 func checkPasswordHash(inputPassword, storedPassword string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(storedPassword), []byte(inputPassword))
 	return err == nil
@@ -138,7 +138,7 @@ func createUser(username, password string) (*User, error) {
 	return &newUser, nil
 }
 
-// login エンドポイントはユーザー認証を行い、JWT を返します。
+// login エンドポイント：ユーザー認証してJWTを返す
 func login(c *gin.Context) {
 	var loginData LoginRequest
 	if err := c.ShouldBindJSON(&loginData); err != nil {
@@ -170,7 +170,7 @@ func login(c *gin.Context) {
 	})
 }
 
-// register エンドポイントは新規ユーザーを登録します。
+// register エンドポイント：新規ユーザー登録
 func register(c *gin.Context) {
 	var registerData RegisterRequest
 	if err := c.ShouldBind(&registerData); err != nil {
@@ -201,7 +201,7 @@ func register(c *gin.Context) {
 // タスク関連エンドポイント
 // --------------------------
 
-// getTasks は、認証済みユーザーのタスク一覧を DB から返します。
+// getTasks は、認証済みユーザーのタスク一覧を DB から返す
 func getTasks(c *gin.Context) {
 	username := c.GetString("username")
 	user, err := findUserByUsername(username)
@@ -218,7 +218,7 @@ func getTasks(c *gin.Context) {
 	c.JSON(http.StatusOK, tasks)
 }
 
-// addTask は、認証済みユーザーに新規タスクを追加します。
+// addTask は、認証済みユーザーに新規タスクを追加する
 func addTask(c *gin.Context) {
 	username := c.GetString("username")
 	user, err := findUserByUsername(username)
@@ -231,7 +231,6 @@ func addTask(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid request body"})
 		return
 	}
-	// 新規タスクに所有ユーザーIDをセット
 	newTask.UserID = user.ID
 	result := db.Create(&newTask)
 	if result.Error != nil {
@@ -241,7 +240,7 @@ func addTask(c *gin.Context) {
 	c.JSON(http.StatusOK, newTask)
 }
 
-// deleteTask は、認証済みユーザーの指定されたタスクを DB から削除します。
+// deleteTask は、認証済みユーザーの指定されたタスクを DB から削除する
 func deleteTask(c *gin.Context) {
 	username := c.GetString("username")
 	user, err := findUserByUsername(username)
@@ -261,7 +260,6 @@ func deleteTask(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"message": "Task not found"})
 		return
 	}
-	// タスクの所有者が異なる場合は削除不可
 	if task.UserID != user.ID {
 		c.JSON(http.StatusUnauthorized, gin.H{"message": "Unauthorized"})
 		return
@@ -278,7 +276,7 @@ func deleteTask(c *gin.Context) {
 // main 関数（サーバー起動）
 // --------------------------
 func main() {
-	// Railway の PostgreSQL 接続文字列（実際は環境変数などで管理することを推奨します）
+	// Railway の PostgreSQL 接続文字列（本来は環境変数から取得すべきです）
 	dsn := "postgresql://postgres:KQpPHPkjBTjOTiATcxcrjxCGsxeTJlUa@roundhouse.proxy.rlwy.net:14595/railway"
 
 	// PostgreSQL に接続
@@ -288,7 +286,16 @@ func main() {
 		log.Fatal("failed to connect database:", err)
 	}
 
-	// モデルの自動マイグレーション
+	// 既存の古い一意制約名「uni_users_username」が存在する場合のみ削除する
+	if db.Migrator().HasConstraint(&User{}, "uni_users_username") {
+		if err := db.Migrator().DropConstraint(&User{}, "uni_users_username"); err != nil {
+			log.Printf("Warning: failed to drop constraint 'uni_users_username': %v", err)
+		} else {
+			log.Println("Dropped old constraint 'uni_users_username'")
+		}
+	}
+
+	// モデルの自動マイグレーション（テーブルが存在しない場合は作成）
 	if err := db.AutoMigrate(&User{}, &Task{}); err != nil {
 		log.Fatal("failed to auto-migrate:", err)
 	}
@@ -308,7 +315,7 @@ func main() {
 		})
 	})
 
-	// /register ではアカウント作成用のページ (login.html) を表示
+	// /register ではアカウント作成用ページ (login.html) を表示
 	r.GET("/register", func(c *gin.Context) {
 		c.HTML(http.StatusOK, "login.html", gin.H{
 			"title":      "アカウント作成ページ",
@@ -317,7 +324,7 @@ func main() {
 		})
 	})
 
-	// /index は保護ページとして HTML を返す（認証チェックはクライアント側で実施）
+	// /index は保護ページとしてHTMLを返す（認証チェックはクライアント側で実施）
 	r.GET("/index", func(c *gin.Context) {
 		c.HTML(http.StatusOK, "index.html", nil)
 	})
