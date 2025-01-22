@@ -25,7 +25,7 @@ import (
 var centralDB *gorm.DB
 
 // User は認証用のユーザー情報（中央DBに保存）
-// SchemaName には tenant_<username> のような形式を採用
+// SchemaName には tenant_<username> という形式を採用します
 type User struct {
 	ID         uint   `gorm:"primaryKey"`
 	Username   string `gorm:"uniqueIndex:idx_users_username;not null"`
@@ -211,12 +211,15 @@ func register(c *gin.Context) {
 // --------------------------
 // タスク関連エンドポイント（各ユーザーの専用スキーマを利用）
 // --------------------------
+
 // newTenantDB は、中央DB と同じ DSN から、search_path を切り替えた接続を返します
 func newTenantDB(schema string) (*gorm.DB, error) {
-	dsn := strings.TrimSpace(os.Getenv("DATABASE_URL"))
+	// ここでも DATABASE_PUBLIC_URL を使用する
+	dsn := strings.TrimSpace(os.Getenv("DATABASE_PUBLIC_URL"))
 	if dsn == "" {
-		log.Fatal("DATABASE_URL が設定されていません。")
+		log.Fatal("DATABASE_PUBLIC_URL が設定されていません。")
 	}
+	// DSN の末尾に不要な改行等が入っていないことを確認してください
 	dsnWithSchema := fmt.Sprintf("%s?search_path=%s", dsn, schema)
 	tenantDB, err := gorm.Open(postgres.Open(dsnWithSchema), &gorm.Config{})
 	if err != nil {
@@ -247,11 +250,12 @@ func getTasks(c *gin.Context) {
 	mainTasks := []Task{}
 	subTasks := []Task{}
 	for _, task := range tasks {
-		if task.Type == "habit" {
+		switch task.Type {
+		case "habit":
 			habitTasks = append(habitTasks, task)
-		} else if task.Type == "main" {
+		case "main":
 			mainTasks = append(mainTasks, task)
-		} else if task.Type == "sub" {
+		case "sub":
 			subTasks = append(subTasks, task)
 		}
 	}
@@ -318,10 +322,10 @@ func deleteTask(c *gin.Context) {
 }
 
 func main() {
-	// 環境変数 DATABASE_PUBLIC_URL から DSN を取得（余計な改行や空白を除去）
-	dsn := strings.TrimSpace(os.Getenv("DATABASE_URL"))
+	// DATABASE_PUBLIC_URL 環境変数から DSN を取得（不要な改行や空白を除去）
+	dsn := strings.TrimSpace(os.Getenv("DATABASE_PUBLIC_URL"))
 	if dsn == "" {
-		log.Fatal("DATABASE_URL が設定されていません。正しい DSN を環境変数に設定してください。")
+		log.Fatal("DATABASE_PUBLIC_URL が設定されていません。正しい DSN を環境変数に設定してください。")
 	}
 	// DSN の例（本番では sslmode=require が必要）
 	// postgresql://postgres:WzOmuEUbEDlIGBJgCvoXbowDBEkulsGO@junction.proxy.rlwy.net:44586/railway?sslmode=require
