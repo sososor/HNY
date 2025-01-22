@@ -24,7 +24,7 @@ var db *gorm.DB
 // User モデル（ユーザー登録・認証用）
 type User struct {
 	ID        uint   `gorm:"primaryKey"`
-	Username  string `gorm:"uniqueIndex;not null"`
+	Username  string `gorm:"uniqueIndex:idx_users_username;not null"`
 	Password  string `gorm:"not null"`
 	Tasks     []Task
 	CreatedAt time.Time
