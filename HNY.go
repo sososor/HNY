@@ -137,7 +137,6 @@ func createUser(username, password string) (*User, error) {
 		log.Printf("Failed to create schema %s: %v", schema, err)
 		return nil, err
 	}
-
 	// 各ユーザー専用のスキーマに接続するための DB を作成（search_path を切り替え）
 	tenantDB, err := newTenantDB(schema)
 	if err != nil {
@@ -212,13 +211,13 @@ func register(c *gin.Context) {
 // --------------------------
 // タスク関連エンドポイント（各ユーザーの専用スキーマを利用）
 // --------------------------
+// newTenantDB は、中央DB と同じ DSN から、search_path を切り替えた接続を返します
 func newTenantDB(schema string) (*gorm.DB, error) {
 	dsn := strings.TrimSpace(os.Getenv("DATABASE_PUBLIC_URL"))
 	if dsn == "" {
 		log.Fatal("DATABASE_PUBLIC_URL が設定されていません。")
 	}
-	// DSNの末尾に不要な改行などがないことを確認してください。
-	// 例: sslmode=require を含む DSN
+	// DSN の末尾に不要な改行が入っていないことを確認してください。
 	dsnWithSchema := fmt.Sprintf("%s?search_path=%s", dsn, schema)
 	tenantDB, err := gorm.Open(postgres.Open(dsnWithSchema), &gorm.Config{})
 	if err != nil {
@@ -240,13 +239,16 @@ func getTasks(c *gin.Context) {
 		return
 	}
 	var tasks []Task
-	// ここで、各タスクの種類ごとに別のリストに表示するために、別々にフィルタリングして追加します
-	// ※サーバーからは全タスクを返していますので、ここで振り分けます
+	// まず全タスクを取得
+	if err := tenantDB.Find(&tasks).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Error retrieving tasks"})
+		return
+	}
+	// タスクの種類ごとに振り分け
 	habitTasks := []Task{}
 	mainTasks := []Task{}
 	subTasks := []Task{}
 	for _, task := range tasks {
-		// タスクの種類ごとに振り分け（本来 tasks はDBから返されたタスク配列）
 		if task.Type == "habit" {
 			habitTasks = append(habitTasks, task)
 		} else if task.Type == "main" {
@@ -255,13 +257,12 @@ func getTasks(c *gin.Context) {
 			subTasks = append(subTasks, task)
 		}
 	}
-	// ※ここではシンプルに全タスクを返す
-	// ご希望であれば、JSON の形式を変えて、たとえば { habits: [...], main: [...], sub: [...] } のように返すこともできます
-	if err := tenantDB.Find(&tasks).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": "Error retrieving tasks"})
-		return
-	}
-	c.JSON(http.StatusOK, tasks)
+	// JSON の形式を変えて返す例
+	c.JSON(http.StatusOK, gin.H{
+		"habits": habitTasks,
+		"main":   mainTasks,
+		"sub":    subTasks,
+	})
 }
 
 func addTask(c *gin.Context) {
@@ -320,7 +321,7 @@ func deleteTask(c *gin.Context) {
 }
 
 func main() {
-	// 環境変数 DATABASE_PUBLIC_URL から DSN を取得（末尾の改行や空白を除去）
+	// 環境変数 DATABASE_PUBLIC_URL から DSN を取得（不要な改行や空白を除去）
 	dsn := strings.TrimSpace(os.Getenv("DATABASE_PUBLIC_URL"))
 	if dsn == "" {
 		log.Fatal("DATABASE_PUBLIC_URL が設定されていません。正しい DSN を環境変数に設定してください。")
