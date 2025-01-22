@@ -36,22 +36,25 @@
       var password = document.getElementById('password').value;
       var actionUrl = this.action;
       var data = { username: username, password: password };
+
       fetch(actionUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
       })
       .then(response => response.json())
-      .then(data => {
-        if (data.message === "User registered successfully" || data.message === "Login successful") {
-          if (data.token) {
-            localStorage.setItem('authToken', data.token);
+      .then(result => {
+        if (result.message === "User registered successfully" || result.message === "Login successful") {
+          // ログイン成功時のトークン保存
+          if (result.token) {
+            localStorage.setItem('authToken', result.token);
           }
-          if (data.redirectUrl) {
-            window.location.href = data.redirectUrl;
+          // redirectUrlがあれば遷移
+          if (result.redirectUrl) {
+            window.location.href = result.redirectUrl;
           }
         } else {
-          alert("エラー: " + data.message);
+          alert("エラー: " + result.message);
         }
       })
       .catch(error => console.error("エラーが発生しました:", error));
