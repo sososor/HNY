@@ -39,7 +39,7 @@ type Task struct {
 	ID        uint   `gorm:"primaryKey"`
 	Content   string `gorm:"not null"`
 	Type      string `gorm:"not null"` // "habit", "main", "sub"
-	UserID    uint   `gorm:"not null"` // 中央DBの User.ID （参考）
+	UserID    uint   `gorm:"not null"` // 中央DBの User.ID （参考用）
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }
@@ -48,7 +48,7 @@ type Task struct {
 // JWT と認証関連
 // --------------------------
 
-var jwtKey = []byte("secret_key") // 本番では環境変数で管理する
+var jwtKey = []byte("secret_key") // 本番では環境変数等で管理する
 
 // generateJWT は指定したユーザー名で JWT を生成します
 func generateJWT(username string) (string, error) {
@@ -98,7 +98,6 @@ type LoginRequest struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
 }
-
 type RegisterRequest struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
@@ -144,7 +143,7 @@ func createUser(username, password string) (*User, error) {
 		return nil, err
 	}
 
-	// tenant 用の DB 接続を作成（search_path を専用スキーマに切り替え）
+	// tenant 用 DB 接続を作成（search_path を専用スキーマに切り替え）
 	tenantDB, err := newTenantDB(schema)
 	if err != nil {
 		log.Printf("Failed to get tenant DB for schema %s: %v", schema, err)
@@ -198,7 +197,7 @@ func register(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid request body"})
 		return
 	}
-	// 重複チェック
+	// ユーザー名の重複チェック
 	_, err := findUserByUsername(registerData.Username)
 	if err == nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Username already taken"})
@@ -223,11 +222,11 @@ func register(c *gin.Context) {
 
 // newTenantDB は同じ DSN で tenant 用に search_path を設定した接続を返します
 func newTenantDB(schema string) (*gorm.DB, error) {
-	dsn := os.Getenv("DATABASE_PUBLIC_URL")
+	dsn := strings.TrimSpace(os.Getenv("DATABASE_PUBLIC_URL"))
 	if dsn == "" {
 		log.Fatal("DATABASE_PUBLIC_URL が設定されていません。")
 	}
-	// 例：sslmode が必要ならクエリパラメータとして追加する
+	// 例: sslmode を含む場合:
 	dsnWithSchema := fmt.Sprintf("%s?search_path=%s", dsn, schema)
 	tenantDB, err := gorm.Open(postgres.Open(dsnWithSchema), &gorm.Config{})
 	if err != nil {
@@ -236,7 +235,7 @@ func newTenantDB(schema string) (*gorm.DB, error) {
 	return tenantDB, nil
 }
 
-// getTasks は、ログイン中のユーザーのタスク一覧を専用スキーマから返す
+// getTasks は、ログイン中のユーザーのタスク一覧を専用スキーマから返します
 func getTasks(c *gin.Context) {
 	username := c.GetString("username")
 	user, err := findUserByUsername(username)
@@ -257,7 +256,7 @@ func getTasks(c *gin.Context) {
 	c.JSON(http.StatusOK, tasks)
 }
 
-// addTask は、ログイン中のユーザーの専用スキーマにタスクを追加する
+// addTask は、ログイン中のユーザーの専用スキーマにタスクを追加します
 func addTask(c *gin.Context) {
 	username := c.GetString("username")
 	user, err := findUserByUsername(username)
@@ -283,7 +282,7 @@ func addTask(c *gin.Context) {
 	c.JSON(http.StatusOK, newTask)
 }
 
-// deleteTask は、ログイン中のユーザーの専用スキーマからタスクを削除する
+// deleteTask は、ログイン中のユーザーの専用スキーマからタスクを削除します
 func deleteTask(c *gin.Context) {
 	username := c.GetString("username")
 	user, err := findUserByUsername(username)
@@ -315,9 +314,8 @@ func deleteTask(c *gin.Context) {
 }
 
 func main() {
-	// DATABASE_PUBLIC_URL 環境変数に正しいDSNが設定されているか確認（例：
-	// "postgresql://postgres:password@roundhouse.proxy.rlwy.net:14595/railway?sslmode=require"）
-	dsn := os.Getenv("DATABASE_PUBLIC_URL")
+	// DATABASE_PUBLIC_URL 環境変数から DSN を取得（末尾の改行などを除去）
+	dsn := strings.TrimSpace(os.Getenv("DATABASE_PUBLIC_URL"))
 	if dsn == "" {
 		log.Fatal("DATABASE_PUBLIC_URL が設定されていません。正しい DSN を環境変数に設定してください。")
 	}
