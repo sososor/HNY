@@ -5,129 +5,41 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>2025年 新年の抱負と習慣</title>
   <style>
-    body {
-      font-family: 'Helvetica Neue', sans-serif;
-      background-color: #f0f4f8;
-      color: #333;
-      margin: 0;
-      padding: 20px;
-    }
-    h1, h2 {
-      text-align: center;
-      color: #003366;
-      margin-bottom: 20px;
-    }
-    .container {
-      max-width: 800px;
-      margin: 0 auto;
-      background-color: #fff;
-      padding: 30px;
-      border-radius: 10px;
-      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-    }
-    textarea {
-      width: 100%;
-      height: 60px;
-      padding: 10px;
-      margin-bottom: 15px;
-      border: 1px solid #ccc;
-      border-radius: 5px;
-      font-size: 16px;
-      background-color: #f7f9fc;
-    }
-    button {
-      display: inline-block;
-      padding: 8px 12px;
-      background-color: #005b96;
-      color: white;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-      font-size: 14px;
-      transition: background-color 0.3s ease;
-      margin-left: 5px;
-    }
-    button:hover {
-      background-color: #004080;
-    }
-    .save-button {
-      display: block;
-      width: 100%;
-      padding: 12px;
-      background-color: #005b96;
-      color: white;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-      font-size: 16px;
-      margin-bottom: 20px;
-      transition: background-color 0.3s ease;
-    }
-    .save-button:hover {
-      background-color: #004080;
-    }
-    ul {
-      list-style-type: none;
-      padding-left: 0;
-    }
-    li {
-      background-color: #e6f0ff;
-      padding: 10px;
-      margin-bottom: 10px;
-      border-radius: 5px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    }
-    .item-number {
-      font-weight: bold;
-      margin-right: 10px;
-    }
-    .item-content {
-      flex-grow: 1;
-    }
-    .controls {
-      display: flex;
-      gap: 5px;
-    }
-    .logout-btn {
-      display: block;
-      width: 100%;
-      padding: 12px;
-      background-color: #ff4d4d;
-      color: white;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-      font-size: 16px;
-      margin-top: 30px;
-      transition: background-color 0.3s ease;
-    }
-    .logout-btn:hover {
-      background-color: #e60000;
-    }
+    body { font-family: 'Helvetica Neue', sans-serif; background-color: #f0f4f8; color: #333; margin: 0; padding: 20px; }
+    h1, h2 { text-align: center; color: #003366; margin-bottom: 20px; }
+    .container { max-width: 800px; margin: 0 auto; background-color: #fff; padding: 30px; border-radius: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+    textarea { width: 100%; height: 60px; padding: 10px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 5px; font-size: 16px; background-color: #f7f9fc; }
+    button { display: inline-block; padding: 8px 12px; background-color: #005b96; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px; transition: background-color 0.3s ease; margin-left: 5px; }
+    button:hover { background-color: #004080; }
+    .save-button { display: block; width: 100%; padding: 12px; background-color: #005b96; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; margin-bottom: 20px; transition: background-color 0.3s ease; }
+    .save-button:hover { background-color: #004080; }
+    ul { list-style-type: none; padding-left: 0; }
+    li { background-color: #e6f0ff; padding: 10px; margin-bottom: 10px; border-radius: 5px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+    .item-number { font-weight: bold; margin-right: 10px; }
+    .item-content { flex-grow: 1; word-wrap: break-word; }
+    .controls { display: flex; gap: 5px; }
+    .logout-btn { display: block; width: 100%; padding: 12px; background-color: #ff4d4d; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; margin-top: 30px; transition: background-color 0.3s ease; }
+    .logout-btn:hover { background-color: #e60000; }
   </style>
 </head>
 <body>
 <div class="container">
   <h1>2025年 新年の抱負と習慣</h1>
-  
   <h2>習慣</h2>
   <textarea id="habitInput" placeholder="習慣を入力してください..."></textarea>
   <button class="save-button" onclick="addItem('habit')">保存</button>
   <ul id="habits-list"></ul>
-
+  
   <h2>メインの抱負</h2>
   <textarea id="mainGoalInput" placeholder="メインの抱負を入力してください..."></textarea>
   <button class="save-button" onclick="addItem('main')">保存</button>
   <ul id="main-goals-list"></ul>
-
+  
   <h2>サブの抱負</h2>
   <textarea id="subGoalInput" placeholder="サブの抱負を入力してください..."></textarea>
   <button class="save-button" onclick="addItem('sub')">保存</button>
   <ul id="sub-goals-list"></ul>
-
+  
   <button class="logout-btn" onclick="logout()">ログアウト</button>
 </div>
 
@@ -149,15 +61,9 @@
       document.getElementById("habits-list").innerHTML = "";
       document.getElementById("main-goals-list").innerHTML = "";
       document.getElementById("sub-goals-list").innerHTML = "";
-      if (data.habits) {
-        data.habits.forEach(task => addTaskToList(task));
-      }
-      if (data.main) {
-        data.main.forEach(task => addTaskToList(task));
-      }
-      if (data.sub) {
-        data.sub.forEach(task => addTaskToList(task));
-      }
+      if (data.habits) data.habits.forEach(task => addTaskToList(task));
+      if (data.main) data.main.forEach(task => addTaskToList(task));
+      if (data.sub) data.sub.forEach(task => addTaskToList(task));
     } catch (error) {
       console.error('タスクの取得エラー:', error);
     }
@@ -179,17 +85,17 @@
     numberSpan.className = "item-number";
     const contentSpan = document.createElement("span");
     contentSpan.className = "item-content";
-    contentSpan.textContent = task.content;
+    contentSpan.innerText = task.content;
     const controlsDiv = document.createElement("div");
     controlsDiv.className = "controls";
     const upButton = document.createElement("button");
-    upButton.textContent = "↑";
+    upButton.innerText = "↑";
     upButton.onclick = function () { moveUp(li); };
     const downButton = document.createElement("button");
-    downButton.textContent = "↓";
+    downButton.innerText = "↓";
     downButton.onclick = function () { moveDown(li); };
     const deleteButton = document.createElement("button");
-    deleteButton.textContent = "削除";
+    deleteButton.innerText = "削除";
     deleteButton.onclick = function () { deleteTask(task.id); };
     controlsDiv.appendChild(upButton);
     controlsDiv.appendChild(downButton);
@@ -205,7 +111,7 @@
     const items = ul.getElementsByTagName("li");
     for (let i = 0; i < items.length; i++) {
       const numberSpan = items[i].getElementsByClassName("item-number")[0];
-      numberSpan.textContent = (i + 1) + ". ";
+      numberSpan.innerText = (i + 1) + ". ";
     }
   }
 
@@ -226,7 +132,7 @@
   }
 
   async function addItem(type) {
-    let inputId;
+    let inputId = "";
     if (type === 'main') {
       inputId = 'mainGoalInput';
     } else if (type === 'sub') {
@@ -266,8 +172,8 @@
       });
       if (response.ok) {
         fetchTasks();
-      } else { 
-        alert('タスク削除のエラー'); 
+      } else {
+        alert('タスク削除のエラー');
       }
     } catch (error) {
       console.error('タスク削除エラー:', error);

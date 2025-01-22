@@ -26,7 +26,7 @@ type User struct {
 	ID         uint   `gorm:"primaryKey"`
 	Username   string `gorm:"uniqueIndex:idx_users_username;not null"`
 	Password   string `gorm:"not null"`
-	SchemaName string `gorm:"not null"`
+	SchemaName string `gorm:"not null"` // tenant_<username> という形式
 	CreatedAt  time.Time
 	UpdatedAt  time.Time
 }
@@ -35,7 +35,7 @@ type Task struct {
 	ID        uint   `gorm:"primaryKey"`
 	Content   string `gorm:"not null"`
 	Type      string `gorm:"not null"` // "habit", "main", "sub"
-	UserID    uint   `gorm:"not null"` // 中央DBの User.ID
+	UserID    uint   `gorm:"not null"` // 中央DB の User.ID（参考）
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }
@@ -43,7 +43,7 @@ type Task struct {
 // --------------------------
 // JWT と認証関連
 // --------------------------
-var jwtKey = []byte("secret_key")
+var jwtKey = []byte("secret_key") // 本番では環境変数等で管理する
 
 func generateJWT(username string) (string, error) {
 	claims := &jwt.StandardClaims{
@@ -190,6 +190,7 @@ func register(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Error creating user"})
 		return
 	}
+	// 登録完了後はログインページへリダイレクトする（クライアント側のJSで処理）
 	c.JSON(http.StatusOK, gin.H{
 		"message":     "User registered successfully",
 		"user":        newUser,
@@ -207,7 +208,6 @@ func newTenantDB(schema string) (*gorm.DB, error) {
 	if dsn == "" {
 		log.Fatal("DATABASE_PUBLIC_URL が設定されていません。")
 	}
-	// DSNにすでにクエリパラメータが含まれている場合は、"&" を使って追記する
 	var dsnWithSchema string
 	if strings.Contains(dsn, "?") {
 		dsnWithSchema = fmt.Sprintf("%s&search_path=%s", dsn, schema)
@@ -319,7 +319,8 @@ func main() {
 	if dsn == "" {
 		log.Fatal("DATABASE_PUBLIC_URL が設定されていません。正しい DSN を環境変数に設定してください。")
 	}
-	// DSN の例：postgresql://postgres:WzOmuEUbEDlIGBJgCvoXbowDBEkulsGO@junction.proxy.rlwy.net:44586/railway?sslmode=require
+	// DSN の例：
+	// postgresql://postgres:WzOmuEUbEDlIGBJgCvoXbowDBEkulsGO@junction.proxy.rlwy.net:44586/railway?sslmode=require
 	var err error
 	centralDB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
@@ -335,9 +336,11 @@ func main() {
 			log.Println("Dropped old constraint 'uni_users_username'")
 		}
 	}
+
 	r := gin.Default()
 	r.Use(cors.Default())
 	r.LoadHTMLGlob("templates/*")
+
 	r.GET("/", func(c *gin.Context) {
 		c.HTML(http.StatusOK, "login.html", gin.H{
 			"title":      "ログインページ",
@@ -357,6 +360,7 @@ func main() {
 	})
 	r.POST("/login", login)
 	r.POST("/register", register)
+
 	taskGroup := r.Group("/tasks")
 	taskGroup.Use(authRequired())
 	{
@@ -364,6 +368,7 @@ func main() {
 		taskGroup.POST("", addTask)
 		taskGroup.DELETE("/:id", deleteTask)
 	}
+
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"

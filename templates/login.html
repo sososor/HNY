@@ -5,39 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{.title}}</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      padding: 20px;
-      background-color: #f0f0f0;
-    }
-    form {
-      background: #fff;
-      padding: 20px;
-      border-radius: 8px;
-      max-width: 400px;
-      margin: 0 auto;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    }
-    input {
-      width: 100%;
-      padding: 8px;
-      margin: 8px 0;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-    }
-    button {
-      background-color: #005b96;
-      color: white;
-      border: none;
-      padding: 10px;
-      border-radius: 4px;
-      cursor: pointer;
-      width: 100%;
-    }
-    a {
-      text-decoration: none;
-      color: #005b96;
-    }
+    body { font-family: Arial, sans-serif; padding: 20px; background-color: #f0f0f0; }
+    form { background: #fff; padding: 20px; border-radius: 8px; max-width: 400px; margin: 0 auto; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+    input { width: 100%; padding: 8px; margin: 8px 0; border: 1px solid #ccc; border-radius: 4px; }
+    button { background-color: #005b96; color: white; border: none; padding: 10px; border-radius: 4px; cursor: pointer; width: 100%; }
+    a { text-decoration: none; color: #005b96; }
   </style>
 </head>
 <body>
@@ -71,19 +43,18 @@
       })
       .then(response => response.json())
       .then(data => {
-  if (data.message === "User registered successfully" || data.message === "Login successful") {
-    if (data.token) {
-      // ここでトークンをローカルストレージに保存
-      localStorage.setItem('authToken', data.token);
-    }
-    if (data.redirectUrl) {
-      window.location.href = data.redirectUrl;
-    }
-  } else {
-    alert("エラー: " + data.message);
-  }
-})
-
+        if (data.message === "User registered successfully" || data.message === "Login successful") {
+          if (data.token) {
+            // ログイン成功時はトークンを保存
+            localStorage.setItem('authToken', data.token);
+          }
+          if (data.redirectUrl) {
+            window.location.href = data.redirectUrl;
+          }
+        } else {
+          alert("エラー: " + data.message);
+        }
+      })
       .catch(error => console.error("エラーが発生しました:", error));
     });
   </script>
