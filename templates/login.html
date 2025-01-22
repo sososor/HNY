@@ -71,15 +71,19 @@
       })
       .then(response => response.json())
       .then(data => {
-        if (data.message === "User registered successfully" || data.message === "Login successful") {
-          // 登録またはログイン成功後、返された redirectUrl に移動
-          if (data.redirectUrl) {
-            window.location.href = data.redirectUrl;
-          }
-        } else {
-          alert("エラー: " + data.message);
-        }
-      })
+  if (data.message === "User registered successfully" || data.message === "Login successful") {
+    if (data.token) {
+      // ここでトークンをローカルストレージに保存
+      localStorage.setItem('authToken', data.token);
+    }
+    if (data.redirectUrl) {
+      window.location.href = data.redirectUrl;
+    }
+  } else {
+    alert("エラー: " + data.message);
+  }
+})
+
       .catch(error => console.error("エラーが発生しました:", error));
     });
   </script>
