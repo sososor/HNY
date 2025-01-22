@@ -228,7 +228,7 @@ func newTenantDB(schema string) (*gorm.DB, error) {
 	dsn := os.Getenv("DATABASE_PUBLIC_URL")
 	if dsn == "" {
 		// 例：dsnが無い場合はこちらを利用（修正してください）
-		dsn = "postgresql://postgres:KQpPHPkjBTjOTiATcxcrjxCGsxeTJlUa@roundhouse.proxy.rlwy.net:14595/railway"
+		dsn = "postgresql://postgres:KQpPHPkjBTjOTiATcxcrjxCGsxeTJlUa@:/railway"
 	}
 	// search_path にschemaを設定
 	dsnWithSchema := fmt.Sprintf("%s?search_path=%s", dsn, schema)
@@ -327,7 +327,7 @@ func main() {
 	dsn := os.Getenv("DATABASE_PUBLIC_URL")
 	if dsn == "" {
 		// 例：dsnがない場合の予備
-		dsn = "postgresql://postgres:KQpPHPkjBTjOTiATcxcrjxCGsxeTJlUa@roundhouse.proxy.rlwy.net:14595/railway"
+		dsn = "postgresql://postgres:KQpPHPkjBTjOTiATcxcrjxCGsxeTJlUa@:/railway"
 	}
 
 	var err error
