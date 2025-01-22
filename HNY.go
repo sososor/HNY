@@ -25,7 +25,7 @@ import (
 var centralDB *gorm.DB
 
 // User は認証用のユーザー情報（中央DBに保存）
-// SchemaName には tenant_<username> という形式を採用します
+// SchemaName には tenant_<username> のような形式を採用
 type User struct {
 	ID         uint   `gorm:"primaryKey"`
 	Username   string `gorm:"uniqueIndex:idx_users_username;not null"`
@@ -40,7 +40,7 @@ type Task struct {
 	ID        uint   `gorm:"primaryKey"`
 	Content   string `gorm:"not null"`
 	Type      string `gorm:"not null"` // "habit", "main", "sub"
-	UserID    uint   `gorm:"not null"` // 中央DBの User.ID（参考用）
+	UserID    uint   `gorm:"not null"` // 中央DB の User.ID（参考用）
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }
@@ -318,24 +318,21 @@ func deleteTask(c *gin.Context) {
 }
 
 func main() {
-	// 環境変数 DATABASE_PUBLIC_URL から DSN を取得（不要な改行や空白を除去）
+	// 環境変数 DATABASE_PUBLIC_URL から DSN を取得（余計な改行や空白を除去）
 	dsn := strings.TrimSpace(os.Getenv("DATABASE_PUBLIC_URL"))
 	if dsn == "" {
 		log.Fatal("DATABASE_PUBLIC_URL が設定されていません。正しい DSN を環境変数に設定してください。")
 	}
 	// DSN の例（本番では sslmode=require が必要）
 	// postgresql://postgres:WzOmuEUbEDlIGBJgCvoXbowDBEkulsGO@junction.proxy.rlwy.net:44586/railway?sslmode=require
-
 	var err error
 	centralDB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		log.Fatalf("failed to connect to central database: %v", err)
 	}
-
 	if err := centralDB.AutoMigrate(&User{}); err != nil {
 		log.Fatalf("failed to auto-migrate centralDB: %v", err)
 	}
-
 	if centralDB.Migrator().HasConstraint(&User{}, "uni_users_username") {
 		if err := centralDB.Migrator().DropConstraint(&User{}, "uni_users_username"); err != nil {
 			log.Printf("Warning: failed to drop old constraint 'uni_users_username': %v", err)
@@ -343,11 +340,9 @@ func main() {
 			log.Println("Dropped old constraint 'uni_users_username'")
 		}
 	}
-
 	r := gin.Default()
 	r.Use(cors.Default())
 	r.LoadHTMLGlob("templates/*")
-
 	r.GET("/", func(c *gin.Context) {
 		c.HTML(http.StatusOK, "login.html", gin.H{
 			"title":      "ログインページ",
@@ -365,10 +360,8 @@ func main() {
 	r.GET("/index", func(c *gin.Context) {
 		c.HTML(http.StatusOK, "index.html", nil)
 	})
-
 	r.POST("/login", login)
 	r.POST("/register", register)
-
 	taskGroup := r.Group("/tasks")
 	taskGroup.Use(authRequired())
 	{
@@ -376,7 +369,6 @@ func main() {
 		taskGroup.POST("", addTask)
 		taskGroup.DELETE("/:id", deleteTask)
 	}
-
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"

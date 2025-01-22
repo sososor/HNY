@@ -144,8 +144,8 @@
       const response = await fetch(`${apiUrl}/tasks`, {
         headers: { 'Authorization': `Bearer ${authToken}` },
       });
-      const data = await response.json();
       // 受け取る JSON は { habits: [...], main: [...], sub: [...] } 形式
+      const data = await response.json();
       document.getElementById("habits-list").innerHTML = "";
       document.getElementById("main-goals-list").innerHTML = "";
       document.getElementById("sub-goals-list").innerHTML = "";
@@ -177,7 +177,6 @@
     const li = document.createElement("li");
     const numberSpan = document.createElement("span");
     numberSpan.className = "item-number";
-    // 番号は後で updateListNumbers で更新
     const contentSpan = document.createElement("span");
     contentSpan.className = "item-content";
     contentSpan.textContent = task.content;
