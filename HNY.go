@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -93,7 +94,6 @@ func authRequired() gin.HandlerFunc {
 // ユーザー関連エンドポイント
 // --------------------------
 
-// LoginRequest と RegisterRequest は、リクエストボディの構造体です。
 type LoginRequest struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
@@ -279,7 +279,7 @@ func deleteTask(c *gin.Context) {
 // main 関数（サーバー起動）
 // --------------------------
 func main() {
-	// Railway の PostgreSQL 接続文字列（※実際は環境変数などから取得することが推奨されます）
+	// Railway の PostgreSQL 接続文字列（実際は環境変数などで管理することを推奨します）
 	dsn := "postgresql://postgres:KQpPHPkjBTjOTiATcxcrjxCGsxeTJlUa@roundhouse.proxy.rlwy.net:14595/railway"
 
 	// PostgreSQL に接続
@@ -336,8 +336,14 @@ func main() {
 		taskGroup.DELETE("/:id", deleteTask)
 	}
 
-	// サーバー起動
-	if err := r.Run(":8080"); err != nil {
+	// 環境変数 "PORT" で指定されたポート（なければ "8080"）でリッスン
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+	addr := "0.0.0.0:" + port
+	log.Printf("Server is running on %s", addr)
+	if err := r.Run(addr); err != nil {
 		log.Fatal("Server startup failed:", err)
 	}
 }

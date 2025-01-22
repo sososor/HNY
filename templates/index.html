@@ -169,7 +169,6 @@
   
         let numberSpan = document.createElement("span");
         numberSpan.className = "item-number";
-        // 番号は後ほど updateListNumbers により更新
   
         let contentSpan = document.createElement("span");
         contentSpan.className = "item-content";
@@ -266,7 +265,6 @@
                 headers: { 'Authorization': `Bearer ${authToken}` },
             });
             if (response.ok) {
-                // 削除確認のアラートは表示せずにタスク一覧を更新
                 fetchTasks();
             } else { 
                 alert('タスク削除のエラー'); 
@@ -281,7 +279,6 @@
         window.location.href = "/";
     }
   
-    // エンターキー押下で保存するためのイベントリスナーを各入力欄に追加
     document.getElementById("habitInput").addEventListener("keydown", function(e){
       if(e.key === "Enter") {
         e.preventDefault();
