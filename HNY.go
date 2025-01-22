@@ -20,24 +20,23 @@ import (
 // --------------------------
 // DB接続とモデル定義
 // --------------------------
+
 var centralDB *gorm.DB
 
-// User はユーザー情報
 type User struct {
 	ID         uint      `gorm:"primaryKey" json:"id"`
 	Username   string    `gorm:"uniqueIndex:idx_users_username;not null" json:"username"`
-	Password   string    `gorm:"not null" json:"-"`          // パスワードは返さない
-	SchemaName string    `gorm:"not null" json:"schemaName"` // tenant_ユーザー名
+	Password   string    `gorm:"not null" json:"-"` // パスワードは返さない
+	SchemaName string    `gorm:"not null" json:"schemaName"`
 	CreatedAt  time.Time `json:"createdAt"`
 	UpdatedAt  time.Time `json:"updatedAt"`
 }
 
-// Task はタスク情報
 type Task struct {
 	ID        uint      `gorm:"primaryKey" json:"id"`
-	Content   string    `gorm:"not null"  json:"content"`
-	Type      string    `gorm:"not null"  json:"type"`   // "habit", "main", "sub"
-	UserID    uint      `gorm:"not null"  json:"userId"` // 中央DBのUser.ID
+	Content   string    `gorm:"not null" json:"content"`
+	Type      string    `gorm:"not null" json:"type"` // "habit", "main", "sub"
+	UserID    uint      `gorm:"not null" json:"userId"`
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
 }
@@ -45,9 +44,9 @@ type Task struct {
 // --------------------------
 // JWT と認証関連
 // --------------------------
-var jwtKey = []byte("secret_key") // 本番運用では環境変数などで管理してください
 
-// generateJWT はユーザー名を含むJWTを生成
+var jwtKey = []byte("secret_key") // 本番では環境変数等で管理してください
+
 func generateJWT(username string) (string, error) {
 	claims := &jwt.StandardClaims{
 		Subject:   username,
@@ -58,7 +57,6 @@ func generateJWT(username string) (string, error) {
 	return token.SignedString(jwtKey)
 }
 
-// authRequired は認証ミドルウェア
 func authRequired() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		tokenString := c.GetHeader("Authorization")
@@ -67,10 +65,8 @@ func authRequired() gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-		// "Bearer "の除去
-		tokenString = strings.TrimPrefix(tokenString, "Bearer ")
-		tokenString = strings.TrimSpace(tokenString)
-
+		// "Bearer " の除去と前後の空白を削除
+		tokenString = strings.TrimSpace(strings.TrimPrefix(tokenString, "Bearer "))
 		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 			return jwtKey, nil
 		})
@@ -92,18 +88,19 @@ func authRequired() gin.HandlerFunc {
 }
 
 // --------------------------
-// ユーザー認証関連
+// ユーザー認証関連エンドポイント
 // --------------------------
+
 type LoginRequest struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
 }
+
 type RegisterRequest struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
 }
 
-// findUserByUsername は中央DBからユーザーを検索
 func findUserByUsername(username string) (*User, error) {
 	var user User
 	result := centralDB.Where("username = ?", username).First(&user)
@@ -113,26 +110,26 @@ func findUserByUsername(username string) (*User, error) {
 	return &user, nil
 }
 
-// checkPasswordHash はパスワードが一致するか確認
 func checkPasswordHash(inputPassword, storedPassword string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(storedPassword), []byte(inputPassword))
 	return err == nil
 }
 
-// createUser は新規ユーザーを作成し、専用スキーマを用意
 func createUser(username, password string) (*User, error) {
+	// ハッシュ化
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		log.Println("Error hashing password:", err)
 		return nil, err
 	}
+	// スキーマ名は "tenant_<username>" とする
 	schema := fmt.Sprintf("tenant_%s", username)
 	newUser := User{
 		Username:   username,
 		Password:   string(hashedPassword),
 		SchemaName: schema,
 	}
-	// 中央DBにユーザーを追加
+	// 中央DBにユーザーを作成
 	if err := centralDB.Create(&newUser).Error; err != nil {
 		return nil, err
 	}
@@ -141,13 +138,13 @@ func createUser(username, password string) (*User, error) {
 		log.Printf("Failed to create schema %s: %v", schema, err)
 		return nil, err
 	}
-	// テナント用DBへ接続 (search_path切替)
+	// テナント用DBを生成（DSN に search_path を追加）
 	tenantDB, err := newTenantDB(schema)
 	if err != nil {
 		log.Printf("Failed to get tenant DB for schema %s: %v", schema, err)
 		return nil, err
 	}
-	// tenant用 Task テーブルのAutoMigrate
+	// Taskテーブル作成
 	if err := tenantDB.AutoMigrate(&Task{}); err != nil {
 		log.Printf("Failed to auto-migrate tenant schema %s: %v", schema, err)
 		return nil, err
@@ -155,8 +152,7 @@ func createUser(username, password string) (*User, error) {
 	return &newUser, nil
 }
 
-// login エンドポイント (POST /login)
-func login(c *gin.Context) {
+func loginHandler(c *gin.Context) {
 	var loginData LoginRequest
 	if err := c.ShouldBindJSON(&loginData); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid request body"})
@@ -183,15 +179,14 @@ func login(c *gin.Context) {
 	})
 }
 
-// register エンドポイント (POST /register)
-func register(c *gin.Context) {
+func registerHandler(c *gin.Context) {
 	var req RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid request body"})
 		return
 	}
+	// ユーザーの存在確認
 	_, err := findUserByUsername(req.Username)
-	// 既にユーザーが存在する
 	if err == nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Username already taken"})
 		return
@@ -201,6 +196,7 @@ func register(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Error creating user"})
 		return
 	}
+	// 登録完了後、ログインページへリダイレクト（クライアント側のJSで処理）
 	c.JSON(http.StatusOK, gin.H{
 		"message":     "User registered successfully",
 		"user":        user,
@@ -209,18 +205,18 @@ func register(c *gin.Context) {
 }
 
 // --------------------------
-// タスク関連
+// タスク関連エンドポイント
 // --------------------------
 
-// newTenantDB は DSN に search_path=schema を追加して開く
+// newTenantDB は DSN に search_path を追加してテナント用DBへ接続する
 func newTenantDB(schema string) (*gorm.DB, error) {
 	dsn := strings.TrimSpace(os.Getenv("DATABASE_PUBLIC_URL"))
 	if dsn == "" {
-		return nil, fmt.Errorf("DATABASE_PUBLIC_URL not set")
+		log.Fatal("DATABASE_PUBLIC_URL is not set")
 	}
+	// 既にクエリパラメータがある場合は "&" を、それ以外は "?" を使用する
 	var dsnWithSchema string
 	if strings.Contains(dsn, "?") {
-		// DSNに既にクエリパラメータがある場合
 		dsnWithSchema = fmt.Sprintf("%s&search_path=%s", dsn, schema)
 	} else {
 		dsnWithSchema = fmt.Sprintf("%s?search_path=%s", dsn, schema)
@@ -228,7 +224,6 @@ func newTenantDB(schema string) (*gorm.DB, error) {
 	return gorm.Open(postgres.Open(dsnWithSchema), &gorm.Config{})
 }
 
-// getTasks エンドポイント (GET /tasks)
 func getTasks(c *gin.Context) {
 	username := c.GetString("username")
 	user, err := findUserByUsername(username)
@@ -246,7 +241,7 @@ func getTasks(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Error retrieving tasks"})
 		return
 	}
-	// タスクを種類別に分割して返す
+	// タスクを種類別に振り分ける
 	habitTasks := []Task{}
 	mainTasks := []Task{}
 	subTasks := []Task{}
@@ -267,7 +262,6 @@ func getTasks(c *gin.Context) {
 	})
 }
 
-// addTask エンドポイント (POST /tasks)
 func addTask(c *gin.Context) {
 	username := c.GetString("username")
 	user, err := findUserByUsername(username)
@@ -285,7 +279,6 @@ func addTask(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid request body"})
 		return
 	}
-	// 新しいタスクにUserIDをセット
 	req.UserID = user.ID
 	if err := tenantDB.Create(&req).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Error adding task"})
@@ -294,7 +287,6 @@ func addTask(c *gin.Context) {
 	c.JSON(http.StatusOK, req)
 }
 
-// deleteTask エンドポイント (DELETE /tasks/:id)
 func deleteTask(c *gin.Context) {
 	username := c.GetString("username")
 	user, err := findUserByUsername(username)
@@ -328,9 +320,9 @@ func deleteTask(c *gin.Context) {
 func main() {
 	dsn := strings.TrimSpace(os.Getenv("DATABASE_PUBLIC_URL"))
 	if dsn == "" {
-		log.Fatal("DATABASE_PUBLIC_URL is not set")
+		log.Fatal("DATABASE_PUBLIC_URL が設定されていません。正しい DSN を環境変数に設定してください。")
 	}
-	// 中央DB接続
+	// 例: postgresql://postgres:WzOmuEUbEDlIGBJgCvoXbowDBEkulsGO@junction.proxy.rlwy.net:44586/railway?sslmode=require
 	var err error
 	centralDB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
@@ -339,21 +331,20 @@ func main() {
 	if err := centralDB.AutoMigrate(&User{}); err != nil {
 		log.Fatalf("failed to auto-migrate centralDB: %v", err)
 	}
-	// 古い unique constraint があれば削除 (uni_users_username)
+	// 古いユニーク制約があれば削除（必要に応じて）
 	if centralDB.Migrator().HasConstraint(&User{}, "uni_users_username") {
 		if err := centralDB.Migrator().DropConstraint(&User{}, "uni_users_username"); err != nil {
 			log.Printf("Warning: failed to drop old constraint 'uni_users_username': %v", err)
+		} else {
+			log.Println("Dropped old constraint 'uni_users_username'")
 		}
 	}
 
-	// Gin
 	r := gin.Default()
 	r.Use(cors.Default())
-
-	// テンプレート読み込み
 	r.LoadHTMLGlob("templates/*")
 
-	// ルート
+	// ログイン & アカウント作成ページ
 	r.GET("/", func(c *gin.Context) {
 		c.HTML(http.StatusOK, "login.html", gin.H{
 			"title":      "ログインページ",
@@ -371,19 +362,19 @@ func main() {
 	r.GET("/index", func(c *gin.Context) {
 		c.HTML(http.StatusOK, "index.html", nil)
 	})
-	// 認証エンドポイント
-	r.POST("/login", login)
-	r.POST("/register", register)
-	// タスク管理 (認証要)
+
+	r.POST("/login", loginHandler)
+	r.POST("/register", registerHandler)
+
+	// タスク管理エンドポイント（認証必須）
 	taskGroup := r.Group("/tasks")
 	taskGroup.Use(authRequired())
 	{
-		taskGroup.GET("", getTasks)          // GET /tasks
-		taskGroup.POST("", addTask)          // POST /tasks
-		taskGroup.DELETE("/:id", deleteTask) // DELETE /tasks/:id
+		taskGroup.GET("", getTasks)
+		taskGroup.POST("", addTask)
+		taskGroup.DELETE("/:id", deleteTask)
 	}
 
-	// 起動
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
