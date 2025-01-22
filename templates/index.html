@@ -144,14 +144,20 @@
       const response = await fetch(`${apiUrl}/tasks`, {
         headers: { 'Authorization': `Bearer ${authToken}` },
       });
-      // 取得した全タスクから種類ごとにフィルタリングしてそれぞれのリストに配置
-      const tasks = await response.json();
-      // それぞれのリストをクリア
+      const data = await response.json();
+      // 受け取る JSON は { habits: [...], main: [...], sub: [...] } 形式
       document.getElementById("habits-list").innerHTML = "";
       document.getElementById("main-goals-list").innerHTML = "";
       document.getElementById("sub-goals-list").innerHTML = "";
-      
-      tasks.forEach(task => addTaskToList(task));
+      if (data.habits) {
+        data.habits.forEach(task => addTaskToList(task));
+      }
+      if (data.main) {
+        data.main.forEach(task => addTaskToList(task));
+      }
+      if (data.sub) {
+        data.sub.forEach(task => addTaskToList(task));
+      }
     } catch (error) {
       console.error('タスクの取得エラー:', error);
     }
@@ -166,41 +172,32 @@
     } else if (task.type === "sub") {
       ul = document.getElementById("sub-goals-list");
     } else {
-      ul = document.getElementById("habits-list"); // デフォルト
+      ul = document.getElementById("habits-list");
     }
     const li = document.createElement("li");
-
     const numberSpan = document.createElement("span");
     numberSpan.className = "item-number";
     // 番号は後で updateListNumbers で更新
-
     const contentSpan = document.createElement("span");
     contentSpan.className = "item-content";
     contentSpan.textContent = task.content;
-
     const controlsDiv = document.createElement("div");
     controlsDiv.className = "controls";
-
     const upButton = document.createElement("button");
     upButton.textContent = "↑";
     upButton.onclick = function () { moveUp(li); };
-
     const downButton = document.createElement("button");
     downButton.textContent = "↓";
     downButton.onclick = function () { moveDown(li); };
-
     const deleteButton = document.createElement("button");
     deleteButton.textContent = "削除";
     deleteButton.onclick = function () { deleteTask(task.id); };
-
     controlsDiv.appendChild(upButton);
     controlsDiv.appendChild(downButton);
     controlsDiv.appendChild(deleteButton);
-
     li.appendChild(numberSpan);
     li.appendChild(contentSpan);
     li.appendChild(controlsDiv);
-
     ul.appendChild(li);
     updateListNumbers(ul);
   }

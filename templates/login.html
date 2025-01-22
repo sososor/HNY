@@ -72,7 +72,7 @@
       .then(response => response.json())
       .then(data => {
         if (data.message === "User registered successfully" || data.message === "Login successful") {
-          // 登録完了後は自動でログインページにリダイレクト
+          // 登録完了またはログイン成功後に、返された redirectUrl に移動
           if (data.redirectUrl) {
             window.location.href = data.redirectUrl;
           }

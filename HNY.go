@@ -40,7 +40,7 @@ type Task struct {
 	ID        uint   `gorm:"primaryKey"`
 	Content   string `gorm:"not null"`
 	Type      string `gorm:"not null"` // "habit", "main", "sub"
-	UserID    uint   `gorm:"not null"` // 中央DBの User.ID （参考用）
+	UserID    uint   `gorm:"not null"` // 中央DBの User.ID（参考用）
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }
@@ -217,7 +217,6 @@ func newTenantDB(schema string) (*gorm.DB, error) {
 	if dsn == "" {
 		log.Fatal("DATABASE_PUBLIC_URL が設定されていません。")
 	}
-	// DSN の末尾に不要な改行が入っていないことを確認してください。
 	dsnWithSchema := fmt.Sprintf("%s?search_path=%s", dsn, schema)
 	tenantDB, err := gorm.Open(postgres.Open(dsnWithSchema), &gorm.Config{})
 	if err != nil {
@@ -239,7 +238,6 @@ func getTasks(c *gin.Context) {
 		return
 	}
 	var tasks []Task
-	// まず全タスクを取得
 	if err := tenantDB.Find(&tasks).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Error retrieving tasks"})
 		return
@@ -257,7 +255,6 @@ func getTasks(c *gin.Context) {
 			subTasks = append(subTasks, task)
 		}
 	}
-	// JSON の形式を変えて返す例
 	c.JSON(http.StatusOK, gin.H{
 		"habits": habitTasks,
 		"main":   mainTasks,
