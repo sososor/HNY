@@ -224,7 +224,7 @@ func register(c *gin.Context) {
 func newTenantDB(schema string) (*gorm.DB, error) {
 	dsn := strings.TrimSpace(os.Getenv("DATABASE_PUBLIC_URL"))
 	if dsn == "" {
-		log.Fatal("DATABASE_PUBLIC_URL が設定されていません。")
+		log.Fatal("DATABASE_PUBLIC_URL が設定されていません。正しい DSN を環境変数に設定してください。")
 	}
 	// 例: sslmode を含む場合:
 	dsnWithSchema := fmt.Sprintf("%s?search_path=%s", dsn, schema)
@@ -314,11 +314,14 @@ func deleteTask(c *gin.Context) {
 }
 
 func main() {
-	// DATABASE_PUBLIC_URL 環境変数から DSN を取得（末尾の改行などを除去）
+	// DATABASE_PUBLIC_URL 環境変数から DSN を取得（余計な改行や空白を除去）
 	dsn := strings.TrimSpace(os.Getenv("DATABASE_PUBLIC_URL"))
 	if dsn == "" {
 		log.Fatal("DATABASE_PUBLIC_URL が設定されていません。正しい DSN を環境変数に設定してください。")
 	}
+
+	// ※ テストとして sslmode=disable を設定する場合は、以下の行のコメントを外して確認してください
+	// dsn = "postgresql://postgres:password@roundhouse.proxy.rlwy.net:14595/railway?sslmode=disable"
 
 	var err error
 	centralDB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
