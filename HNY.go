@@ -213,9 +213,9 @@ func register(c *gin.Context) {
 // --------------------------
 // newTenantDB は、中央DB と同じ DSN から、search_path を切り替えた接続を返します
 func newTenantDB(schema string) (*gorm.DB, error) {
-	dsn := strings.TrimSpace(os.Getenv("DATABASE_PUBLIC_URL"))
+	dsn := strings.TrimSpace(os.Getenv("DATABASE_URL"))
 	if dsn == "" {
-		log.Fatal("DATABASE_PUBLIC_URL が設定されていません。")
+		log.Fatal("DATABASE_URL が設定されていません。")
 	}
 	dsnWithSchema := fmt.Sprintf("%s?search_path=%s", dsn, schema)
 	tenantDB, err := gorm.Open(postgres.Open(dsnWithSchema), &gorm.Config{})
@@ -319,9 +319,9 @@ func deleteTask(c *gin.Context) {
 
 func main() {
 	// 環境変数 DATABASE_PUBLIC_URL から DSN を取得（余計な改行や空白を除去）
-	dsn := strings.TrimSpace(os.Getenv("DATABASE_PUBLIC_URL"))
+	dsn := strings.TrimSpace(os.Getenv("DATABASE_URL"))
 	if dsn == "" {
-		log.Fatal("DATABASE_PUBLIC_URL が設定されていません。正しい DSN を環境変数に設定してください。")
+		log.Fatal("DATABASE_URL が設定されていません。正しい DSN を環境変数に設定してください。")
 	}
 	// DSN の例（本番では sslmode=require が必要）
 	// postgresql://postgres:WzOmuEUbEDlIGBJgCvoXbowDBEkulsGO@junction.proxy.rlwy.net:44586/railway?sslmode=require
