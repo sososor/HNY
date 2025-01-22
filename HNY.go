@@ -20,26 +20,22 @@ import (
 // --------------------------
 // DB接続とモデル定義
 // --------------------------
-
-// centralDB でユーザー情報を管理（中央DB）
 var centralDB *gorm.DB
 
-// User は認証用のユーザー情報（中央DBに保存）
 type User struct {
 	ID         uint   `gorm:"primaryKey"`
 	Username   string `gorm:"uniqueIndex:idx_users_username;not null"`
 	Password   string `gorm:"not null"`
-	SchemaName string `gorm:"not null"` // tenant_<username> のようなスキーマ名
+	SchemaName string `gorm:"not null"`
 	CreatedAt  time.Time
 	UpdatedAt  time.Time
 }
 
-// Task はタスク情報（各ユーザー専用のスキーマ内にテーブルを作成）
 type Task struct {
 	ID        uint   `gorm:"primaryKey"`
 	Content   string `gorm:"not null"`
-	Type      string `gorm:"not null"` // "habit", "main", "sub"
-	UserID    uint   `gorm:"not null"` // 中央DBの User.ID （参考用）
+	Type      string `gorm:"not null"`
+	UserID    uint   `gorm:"not null"`
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }
@@ -47,10 +43,8 @@ type Task struct {
 // --------------------------
 // JWT と認証関連
 // --------------------------
+var jwtKey = []byte("secret_key")
 
-var jwtKey = []byte("secret_key") // 本番では環境変数等で管理する
-
-// generateJWT は指定したユーザー名で JWT を生成します
 func generateJWT(username string) (string, error) {
 	claims := &jwt.StandardClaims{
 		Subject:   username,
@@ -61,7 +55,6 @@ func generateJWT(username string) (string, error) {
 	return token.SignedString(jwtKey)
 }
 
-// authRequired は JWT を検証するミドルウェアです
 func authRequired() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		tokenString := c.GetHeader("Authorization")
@@ -93,17 +86,16 @@ func authRequired() gin.HandlerFunc {
 // --------------------------
 // ユーザー関連エンドポイント（中央DBを操作）
 // --------------------------
-
 type LoginRequest struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
 }
+
 type RegisterRequest struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
 }
 
-// findUserByUsername は中央DBからユーザーを検索します
 func findUserByUsername(username string) (*User, error) {
 	var user User
 	result := centralDB.Where("username = ?", username).First(&user)
@@ -113,13 +105,11 @@ func findUserByUsername(username string) (*User, error) {
 	return &user, nil
 }
 
-// checkPasswordHash はパスワードが一致するか検証します
 func checkPasswordHash(inputPassword, storedPassword string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(storedPassword), []byte(inputPassword))
 	return err == nil
 }
 
-// createUser は中央DBに新規ユーザーを作成し、専用スキーマも作成します
 func createUser(username, password string) (*User, error) {
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
@@ -137,19 +127,16 @@ func createUser(username, password string) (*User, error) {
 		return nil, result.Error
 	}
 
-	// 専用スキーマの作成
 	if err := centralDB.Exec(fmt.Sprintf("CREATE SCHEMA IF NOT EXISTS %s", schema)).Error; err != nil {
 		log.Printf("Failed to create schema %s: %v", schema, err)
 		return nil, err
 	}
 
-	// tenant 用 DB 接続を作成（search_path を専用スキーマに切り替え）
 	tenantDB, err := newTenantDB(schema)
 	if err != nil {
 		log.Printf("Failed to get tenant DB for schema %s: %v", schema, err)
 		return nil, err
 	}
-	// tenant 用に Task テーブルを自動マイグレーション
 	if err := tenantDB.AutoMigrate(&Task{}); err != nil {
 		log.Printf("Failed to auto-migrate tenant schema %s: %v", schema, err)
 		return nil, err
@@ -157,7 +144,6 @@ func createUser(username, password string) (*User, error) {
 	return &newUser, nil
 }
 
-// login エンドポイント
 func login(c *gin.Context) {
 	var loginData LoginRequest
 	if err := c.ShouldBindJSON(&loginData); err != nil {
@@ -189,15 +175,13 @@ func login(c *gin.Context) {
 	})
 }
 
-// register エンドポイント
 func register(c *gin.Context) {
 	var registerData RegisterRequest
-	if err := c.ShouldBind(&registerData); err != nil {
+	if err := c.ShouldBindJSON(&registerData); err != nil {
 		log.Println("Register bind error:", err)
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid request body"})
 		return
 	}
-	// ユーザー名の重複チェック
 	_, err := findUserByUsername(registerData.Username)
 	if err == nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Username already taken"})
@@ -219,14 +203,12 @@ func register(c *gin.Context) {
 // --------------------------
 // タスク関連エンドポイント（各ユーザーの専用スキーマを利用）
 // --------------------------
-
-// newTenantDB は同じ DSN で tenant 用に search_path を設定した接続を返します
 func newTenantDB(schema string) (*gorm.DB, error) {
 	dsn := strings.TrimSpace(os.Getenv("DATABASE_PUBLIC_URL"))
 	if dsn == "" {
-		log.Fatal("DATABASE_PUBLIC_URL が設定されていません。正しい DSN を環境変数に設定してください。")
+		log.Fatal("DATABASE_PUBLIC_URL が設定されていません。")
 	}
-	// 例: sslmode を含む場合:
+	// DSN に sslmode=require が含まれている前提です
 	dsnWithSchema := fmt.Sprintf("%s?search_path=%s", dsn, schema)
 	tenantDB, err := gorm.Open(postgres.Open(dsnWithSchema), &gorm.Config{})
 	if err != nil {
@@ -235,7 +217,6 @@ func newTenantDB(schema string) (*gorm.DB, error) {
 	return tenantDB, nil
 }
 
-// getTasks は、ログイン中のユーザーのタスク一覧を専用スキーマから返します
 func getTasks(c *gin.Context) {
 	username := c.GetString("username")
 	user, err := findUserByUsername(username)
@@ -256,7 +237,6 @@ func getTasks(c *gin.Context) {
 	c.JSON(http.StatusOK, tasks)
 }
 
-// addTask は、ログイン中のユーザーの専用スキーマにタスクを追加します
 func addTask(c *gin.Context) {
 	username := c.GetString("username")
 	user, err := findUserByUsername(username)
@@ -282,7 +262,6 @@ func addTask(c *gin.Context) {
 	c.JSON(http.StatusOK, newTask)
 }
 
-// deleteTask は、ログイン中のユーザーの専用スキーマからタスクを削除します
 func deleteTask(c *gin.Context) {
 	username := c.GetString("username")
 	user, err := findUserByUsername(username)
@@ -314,14 +293,12 @@ func deleteTask(c *gin.Context) {
 }
 
 func main() {
-	// DATABASE_PUBLIC_URL 環境変数から DSN を取得（余計な改行や空白を除去）
+	// DATABASE_PUBLIC_URL 環境変数から DSN を取得（例：
+	// "postgresql://postgres:password@roundhouse.proxy.rlwy.net:14595/railway?sslmode=require"）
 	dsn := strings.TrimSpace(os.Getenv("DATABASE_PUBLIC_URL"))
 	if dsn == "" {
 		log.Fatal("DATABASE_PUBLIC_URL が設定されていません。正しい DSN を環境変数に設定してください。")
 	}
-
-	// ※ テストとして sslmode=disable を設定する場合は、以下の行のコメントを外して確認してください
-	// dsn = "postgresql://postgres:password@roundhouse.proxy.rlwy.net:14595/railway?sslmode=disable"
 
 	var err error
 	centralDB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
