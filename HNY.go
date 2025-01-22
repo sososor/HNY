@@ -23,21 +23,21 @@ import (
 var centralDB *gorm.DB
 
 type User struct {
-	ID         uint   `gorm:"primaryKey"`
-	Username   string `gorm:"uniqueIndex:idx_users_username;not null"`
-	Password   string `gorm:"not null"`
-	SchemaName string `gorm:"not null"` // tenant_<username> という形式
-	CreatedAt  time.Time
-	UpdatedAt  time.Time
+	ID         uint      `gorm:"primaryKey" json:"id"`
+	Username   string    `gorm:"uniqueIndex:idx_users_username;not null" json:"username"`
+	Password   string    `gorm:"not null" json:"-"`
+	SchemaName string    `gorm:"not null" json:"schemaName"`
+	CreatedAt  time.Time `json:"createdAt"`
+	UpdatedAt  time.Time `json:"updatedAt"`
 }
 
 type Task struct {
-	ID        uint   `gorm:"primaryKey"`
-	Content   string `gorm:"not null"`
-	Type      string `gorm:"not null"` // "habit", "main", "sub"
-	UserID    uint   `gorm:"not null"` // 中央DB の User.ID（参考）
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	ID        uint      `gorm:"primaryKey" json:"id"`
+	Content   string    `gorm:"not null" json:"content"`
+	Type      string    `gorm:"not null" json:"type"` // "habit", "main", "sub"
+	UserID    uint      `gorm:"not null" json:"userId"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
 }
 
 // --------------------------
@@ -125,15 +125,18 @@ func createUser(username, password string) (*User, error) {
 	if result.Error != nil {
 		return nil, result.Error
 	}
+	// 専用スキーマの作成
 	if err := centralDB.Exec(fmt.Sprintf("CREATE SCHEMA IF NOT EXISTS %s", schema)).Error; err != nil {
 		log.Printf("Failed to create schema %s: %v", schema, err)
 		return nil, err
 	}
+	// 各ユーザー専用のスキーマに接続するための DB を作成（search_path を切り替え）
 	tenantDB, err := newTenantDB(schema)
 	if err != nil {
 		log.Printf("Failed to get tenant DB for schema %s: %v", schema, err)
 		return nil, err
 	}
+	// tenant 用 Task テーブルの自動マイグレーション
 	if err := tenantDB.AutoMigrate(&Task{}); err != nil {
 		log.Printf("Failed to auto-migrate tenant schema %s: %v", schema, err)
 		return nil, err
@@ -336,7 +339,6 @@ func main() {
 			log.Println("Dropped old constraint 'uni_users_username'")
 		}
 	}
-
 	r := gin.Default()
 	r.Use(cors.Default())
 	r.LoadHTMLGlob("templates/*")
@@ -358,6 +360,7 @@ func main() {
 	r.GET("/index", func(c *gin.Context) {
 		c.HTML(http.StatusOK, "index.html", nil)
 	})
+
 	r.POST("/login", login)
 	r.POST("/register", register)
 

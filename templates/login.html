@@ -45,7 +45,6 @@
       .then(data => {
         if (data.message === "User registered successfully" || data.message === "Login successful") {
           if (data.token) {
-            // ログイン成功時はトークンを保存
             localStorage.setItem('authToken', data.token);
           }
           if (data.redirectUrl) {

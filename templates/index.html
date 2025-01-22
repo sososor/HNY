@@ -25,6 +25,7 @@
 <body>
 <div class="container">
   <h1>2025年 新年の抱負と習慣</h1>
+  
   <h2>習慣</h2>
   <textarea id="habitInput" placeholder="習慣を入力してください..."></textarea>
   <button class="save-button" onclick="addItem('habit')">保存</button>
@@ -56,7 +57,7 @@
       const response = await fetch(`${apiUrl}/tasks`, {
         headers: { 'Authorization': `Bearer ${authToken}` },
       });
-      // 受け取る JSON は { habits: [...], main: [...], sub: [...] } 形式
+      // 受け取る JSON は { habits: [...], main: [...], sub: [...] } の形式
       const data = await response.json();
       document.getElementById("habits-list").innerHTML = "";
       document.getElementById("main-goals-list").innerHTML = "";
