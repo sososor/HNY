@@ -4,21 +4,58 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{.title}}</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background-color: #f0f0f0;
+    }
+    form {
+      background: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      max-width: 400px;
+      margin: 0 auto;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    input {
+      width: 100%;
+      padding: 8px;
+      margin: 8px 0;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    button {
+      background-color: #005b96;
+      color: white;
+      border: none;
+      padding: 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      width: 100%;
+    }
+    a {
+      text-decoration: none;
+      color: #005b96;
+    }
+  </style>
 </head>
 <body>
-  <h1>{{.title}}</h1>
+  <h1 style="text-align:center;">{{.title}}</h1>
   <form id="authForm" action="{{.action}}" method="POST">
     <label for="username">ユーザー名:</label>
-    <input type="text" id="username" name="username" required><br><br>
+    <input type="text" id="username" name="username" required>
+    <br>
     <label for="password">パスワード:</label>
-    <input type="password" id="password" name="password" required><br><br>
+    <input type="password" id="password" name="password" required>
+    <br><br>
     <button type="submit">{{.buttonText}}</button>
   </form>
   <br>
   {{if eq .title "ログインページ"}}
-    <a href="/register">アカウント作成</a>
+    <div style="text-align:center;"><a href="/register">アカウント作成</a></div>
   {{else}}
-    <a href="/">ログイン画面に戻る</a>
+    <div style="text-align:center;"><a href="/">ログイン画面に戻る</a></div>
   {{end}}
   <script>
     document.getElementById('authForm').addEventListener('submit', function(e) {
