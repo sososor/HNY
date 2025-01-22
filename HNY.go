@@ -20,7 +20,6 @@ import (
 // --------------------------
 // DB接続とモデル定義
 // --------------------------
-
 var centralDB *gorm.DB
 
 type User struct {
@@ -36,7 +35,7 @@ type Task struct {
 	ID        uint   `gorm:"primaryKey"`
 	Content   string `gorm:"not null"`
 	Type      string `gorm:"not null"` // "habit", "main", "sub"
-	UserID    uint   `gorm:"not null"` // 中央DB の User.ID（参考用）
+	UserID    uint   `gorm:"not null"` // 中央DBの User.ID
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }
@@ -44,7 +43,7 @@ type Task struct {
 // --------------------------
 // JWT と認証関連
 // --------------------------
-var jwtKey = []byte("secret_key") // 本番では環境変数などで管理する
+var jwtKey = []byte("secret_key")
 
 func generateJWT(username string) (string, error) {
 	claims := &jwt.StandardClaims{
@@ -85,7 +84,7 @@ func authRequired() gin.HandlerFunc {
 }
 
 // --------------------------
-// ユーザー関連エンドポイント（中央DBを操作）
+// ユーザー関連エンドポイント
 // --------------------------
 type LoginRequest struct {
 	Username string `json:"username"`
@@ -191,7 +190,6 @@ func register(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Error creating user"})
 		return
 	}
-	// 登録完了後はログインページにリダイレクト
 	c.JSON(http.StatusOK, gin.H{
 		"message":     "User registered successfully",
 		"user":        newUser,
@@ -200,7 +198,7 @@ func register(c *gin.Context) {
 }
 
 // --------------------------
-// タスク関連エンドポイント（各ユーザーの専用スキーマを利用）
+// タスク関連エンドポイント
 // --------------------------
 
 // newTenantDB は、中央DB と同じ DSN から、search_path を切り替えた接続を返します
@@ -209,7 +207,13 @@ func newTenantDB(schema string) (*gorm.DB, error) {
 	if dsn == "" {
 		log.Fatal("DATABASE_PUBLIC_URL が設定されていません。")
 	}
-	dsnWithSchema := fmt.Sprintf("%s?search_path=%s", dsn, schema)
+	// DSNにすでにクエリパラメータが含まれている場合は、"&" を使って追記する
+	var dsnWithSchema string
+	if strings.Contains(dsn, "?") {
+		dsnWithSchema = fmt.Sprintf("%s&search_path=%s", dsn, schema)
+	} else {
+		dsnWithSchema = fmt.Sprintf("%s?search_path=%s", dsn, schema)
+	}
 	tenantDB, err := gorm.Open(postgres.Open(dsnWithSchema), &gorm.Config{})
 	if err != nil {
 		return nil, err
@@ -234,7 +238,7 @@ func getTasks(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Error retrieving tasks"})
 		return
 	}
-	// タスクの種類ごとに振り分け
+	// 種類ごとに振り分け
 	habitTasks := []Task{}
 	mainTasks := []Task{}
 	subTasks := []Task{}
@@ -311,13 +315,11 @@ func deleteTask(c *gin.Context) {
 }
 
 func main() {
-	// 環境変数 DATABASE_PUBLIC_URL から DSN を取得（不要な改行や空白を除去）
 	dsn := strings.TrimSpace(os.Getenv("DATABASE_PUBLIC_URL"))
 	if dsn == "" {
 		log.Fatal("DATABASE_PUBLIC_URL が設定されていません。正しい DSN を環境変数に設定してください。")
 	}
-	// DSN の例（本番では sslmode=require が必要）
-	// postgresql://postgres:WzOmuEUbEDlIGBJgCvoXbowDBEkulsGO@junction.proxy.rlwy.net:44586/railway?sslmode=require
+	// DSN の例：postgresql://postgres:WzOmuEUbEDlIGBJgCvoXbowDBEkulsGO@junction.proxy.rlwy.net:44586/railway?sslmode=require
 	var err error
 	centralDB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
