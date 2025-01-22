@@ -21,21 +21,17 @@ import (
 // DB接続とモデル定義
 // --------------------------
 
-// centralDB で中央のユーザー情報を管理（中央DB）
 var centralDB *gorm.DB
 
-// User は認証用のユーザー情報（中央DBに保存）
-// SchemaName には tenant_<username> という形式を採用します
 type User struct {
 	ID         uint   `gorm:"primaryKey"`
 	Username   string `gorm:"uniqueIndex:idx_users_username;not null"`
 	Password   string `gorm:"not null"`
-	SchemaName string `gorm:"not null"` // 各ユーザー専用のスキーマ名
+	SchemaName string `gorm:"not null"`
 	CreatedAt  time.Time
 	UpdatedAt  time.Time
 }
 
-// Task はタスク情報（各ユーザー専用のスキーマ内に同じテーブル構造を作成）
 type Task struct {
 	ID        uint   `gorm:"primaryKey"`
 	Content   string `gorm:"not null"`
@@ -48,9 +44,8 @@ type Task struct {
 // --------------------------
 // JWT と認証関連
 // --------------------------
-var jwtKey = []byte("secret_key") // 本番では環境変数等で管理する
+var jwtKey = []byte("secret_key") // 本番では環境変数などで管理する
 
-// generateJWT は指定したユーザー名で JWT を生成します
 func generateJWT(username string) (string, error) {
 	claims := &jwt.StandardClaims{
 		Subject:   username,
@@ -61,7 +56,6 @@ func generateJWT(username string) (string, error) {
 	return token.SignedString(jwtKey)
 }
 
-// authRequired は JWT を検証するミドルウェアです
 func authRequired() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		tokenString := c.GetHeader("Authorization")
@@ -132,18 +126,15 @@ func createUser(username, password string) (*User, error) {
 	if result.Error != nil {
 		return nil, result.Error
 	}
-	// 専用スキーマの作成
 	if err := centralDB.Exec(fmt.Sprintf("CREATE SCHEMA IF NOT EXISTS %s", schema)).Error; err != nil {
 		log.Printf("Failed to create schema %s: %v", schema, err)
 		return nil, err
 	}
-	// 各ユーザー専用のスキーマに接続するための DB を作成（search_path を切り替え）
 	tenantDB, err := newTenantDB(schema)
 	if err != nil {
 		log.Printf("Failed to get tenant DB for schema %s: %v", schema, err)
 		return nil, err
 	}
-	// tenant 用 Task テーブルの自動マイグレーション
 	if err := tenantDB.AutoMigrate(&Task{}); err != nil {
 		log.Printf("Failed to auto-migrate tenant schema %s: %v", schema, err)
 		return nil, err
@@ -214,12 +205,10 @@ func register(c *gin.Context) {
 
 // newTenantDB は、中央DB と同じ DSN から、search_path を切り替えた接続を返します
 func newTenantDB(schema string) (*gorm.DB, error) {
-	// ここでも DATABASE_PUBLIC_URL を使用する
 	dsn := strings.TrimSpace(os.Getenv("DATABASE_PUBLIC_URL"))
 	if dsn == "" {
 		log.Fatal("DATABASE_PUBLIC_URL が設定されていません。")
 	}
-	// DSN の末尾に不要な改行等が入っていないことを確認してください
 	dsnWithSchema := fmt.Sprintf("%s?search_path=%s", dsn, schema)
 	tenantDB, err := gorm.Open(postgres.Open(dsnWithSchema), &gorm.Config{})
 	if err != nil {
@@ -322,7 +311,7 @@ func deleteTask(c *gin.Context) {
 }
 
 func main() {
-	// DATABASE_PUBLIC_URL 環境変数から DSN を取得（不要な改行や空白を除去）
+	// 環境変数 DATABASE_PUBLIC_URL から DSN を取得（不要な改行や空白を除去）
 	dsn := strings.TrimSpace(os.Getenv("DATABASE_PUBLIC_URL"))
 	if dsn == "" {
 		log.Fatal("DATABASE_PUBLIC_URL が設定されていません。正しい DSN を環境変数に設定してください。")
