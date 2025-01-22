@@ -21,7 +21,7 @@ import (
 // DB接続とモデル定義
 // --------------------------
 
-// centralDB で中央のユーザー情報を管理
+// centralDB で中央のユーザー情報を管理（中央DB）
 var centralDB *gorm.DB
 
 // User は認証用のユーザー情報（中央DBに保存）
@@ -35,12 +35,12 @@ type User struct {
 	UpdatedAt  time.Time
 }
 
-// Task はタスク情報（各ユーザー専用のスキーマ内にテーブルを作成）
+// Task はタスク情報（各ユーザー専用のスキーマ内に同じテーブル構造を作成）
 type Task struct {
 	ID        uint   `gorm:"primaryKey"`
 	Content   string `gorm:"not null"`
 	Type      string `gorm:"not null"` // "habit", "main", "sub"
-	UserID    uint   `gorm:"not null"` // 中央DBの User.ID （参考）
+	UserID    uint   `gorm:"not null"` // 中央DBの User.ID （参考用）
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }
@@ -93,7 +93,6 @@ func authRequired() gin.HandlerFunc {
 // --------------------------
 // ユーザー関連エンドポイント（中央DBを操作）
 // --------------------------
-
 type LoginRequest struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
@@ -103,7 +102,6 @@ type RegisterRequest struct {
 	Password string `json:"password"`
 }
 
-// findUserByUsername は中央DBからユーザーを検索します
 func findUserByUsername(username string) (*User, error) {
 	var user User
 	result := centralDB.Where("username = ?", username).First(&user)
@@ -134,7 +132,6 @@ func createUser(username, password string) (*User, error) {
 	if result.Error != nil {
 		return nil, result.Error
 	}
-
 	// 専用スキーマの作成
 	if err := centralDB.Exec(fmt.Sprintf("CREATE SCHEMA IF NOT EXISTS %s", schema)).Error; err != nil {
 		log.Printf("Failed to create schema %s: %v", schema, err)
@@ -204,6 +201,7 @@ func register(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Error creating user"})
 		return
 	}
+	// 登録完了後はログインページにリダイレクト
 	c.JSON(http.StatusOK, gin.H{
 		"message":     "User registered successfully",
 		"user":        newUser,
@@ -214,14 +212,13 @@ func register(c *gin.Context) {
 // --------------------------
 // タスク関連エンドポイント（各ユーザーの専用スキーマを利用）
 // --------------------------
-
-// newTenantDB は、中央DB と同じ DSN から、search_path を切り替えた接続を返します
 func newTenantDB(schema string) (*gorm.DB, error) {
 	dsn := strings.TrimSpace(os.Getenv("DATABASE_PUBLIC_URL"))
 	if dsn == "" {
 		log.Fatal("DATABASE_PUBLIC_URL が設定されていません。")
 	}
-	// 例: sslmode=require を含む DSN を利用する（DSN の末尾に不要な改行がないことを確認）
+	// DSNの末尾に不要な改行などがないことを確認してください。
+	// 例: sslmode=require を含む DSN
 	dsnWithSchema := fmt.Sprintf("%s?search_path=%s", dsn, schema)
 	tenantDB, err := gorm.Open(postgres.Open(dsnWithSchema), &gorm.Config{})
 	if err != nil {
@@ -243,6 +240,23 @@ func getTasks(c *gin.Context) {
 		return
 	}
 	var tasks []Task
+	// ここで、各タスクの種類ごとに別のリストに表示するために、別々にフィルタリングして追加します
+	// ※サーバーからは全タスクを返していますので、ここで振り分けます
+	habitTasks := []Task{}
+	mainTasks := []Task{}
+	subTasks := []Task{}
+	for _, task := range tasks {
+		// タスクの種類ごとに振り分け（本来 tasks はDBから返されたタスク配列）
+		if task.Type == "habit" {
+			habitTasks = append(habitTasks, task)
+		} else if task.Type == "main" {
+			mainTasks = append(mainTasks, task)
+		} else if task.Type == "sub" {
+			subTasks = append(subTasks, task)
+		}
+	}
+	// ※ここではシンプルに全タスクを返す
+	// ご希望であれば、JSON の形式を変えて、たとえば { habits: [...], main: [...], sub: [...] } のように返すこともできます
 	if err := tenantDB.Find(&tasks).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Error retrieving tasks"})
 		return
@@ -306,12 +320,12 @@ func deleteTask(c *gin.Context) {
 }
 
 func main() {
-	// 環境変数 DATABASE_PUBLIC_URL から DSN を取得（余計な改行や空白を除去）
+	// 環境変数 DATABASE_PUBLIC_URL から DSN を取得（末尾の改行や空白を除去）
 	dsn := strings.TrimSpace(os.Getenv("DATABASE_PUBLIC_URL"))
 	if dsn == "" {
 		log.Fatal("DATABASE_PUBLIC_URL が設定されていません。正しい DSN を環境変数に設定してください。")
 	}
-	// DSN 例（本番の場合 sslmode=require が必要です）
+	// DSN の例（本番では sslmode=require が必要）
 	// postgresql://postgres:WzOmuEUbEDlIGBJgCvoXbowDBEkulsGO@junction.proxy.rlwy.net:44586/railway?sslmode=require
 
 	var err error

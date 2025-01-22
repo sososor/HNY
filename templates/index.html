@@ -132,171 +132,177 @@
 </div>
 
 <script>
-    const apiUrl = window.location.origin;
-    let authToken = localStorage.getItem('authToken');
-    if (!authToken) {
-        alert("ログインが必要です！");
-        window.location.href = "login.html";
+  const apiUrl = window.location.origin;
+  let authToken = localStorage.getItem('authToken');
+  if (!authToken) {
+    alert("ログインが必要です！");
+    window.location.href = "login.html";
+  }
+
+  async function fetchTasks() {
+    try {
+      const response = await fetch(`${apiUrl}/tasks`, {
+        headers: { 'Authorization': `Bearer ${authToken}` },
+      });
+      // 取得した全タスクから種類ごとにフィルタリングしてそれぞれのリストに配置
+      const tasks = await response.json();
+      // それぞれのリストをクリア
+      document.getElementById("habits-list").innerHTML = "";
+      document.getElementById("main-goals-list").innerHTML = "";
+      document.getElementById("sub-goals-list").innerHTML = "";
+      
+      tasks.forEach(task => addTaskToList(task));
+    } catch (error) {
+      console.error('タスクの取得エラー:', error);
     }
-  
-    async function fetchTasks() {
-        try {
-            const response = await fetch(`${apiUrl}/tasks`, {
-                headers: { 'Authorization': `Bearer ${authToken}` },
-            });
-            const tasks = await response.json();
-            document.getElementById("habits-list").innerHTML = "";
-            document.getElementById("main-goals-list").innerHTML = "";
-            document.getElementById("sub-goals-list").innerHTML = "";
-            tasks.forEach(task => { addTaskToList(task); });
-        } catch (error) {
-            console.error('タスクの取得エラー:', error);
-        }
+  }
+
+  function addTaskToList(task) {
+    let ul;
+    if (task.type === "habit") {
+      ul = document.getElementById("habits-list");
+    } else if (task.type === "main") {
+      ul = document.getElementById("main-goals-list");
+    } else if (task.type === "sub") {
+      ul = document.getElementById("sub-goals-list");
+    } else {
+      ul = document.getElementById("habits-list"); // デフォルト
     }
-  
-    function addTaskToList(task) {
-        let ul;
-        if (task.type === "habit") {
-            ul = document.getElementById("habits-list");
-        } else if (task.type === "main") {
-            ul = document.getElementById("main-goals-list");
-        } else {
-            ul = document.getElementById("sub-goals-list");
-        }
-        let li = document.createElement("li");
-  
-        let numberSpan = document.createElement("span");
-        numberSpan.className = "item-number";
-  
-        let contentSpan = document.createElement("span");
-        contentSpan.className = "item-content";
-        contentSpan.textContent = task.content;
-  
-        let controlsDiv = document.createElement("div");
-        controlsDiv.className = "controls";
-  
-        let upButton = document.createElement("button");
-        upButton.textContent = "↑";
-        upButton.onclick = function() { moveUp(li); };
-  
-        let downButton = document.createElement("button");
-        downButton.textContent = "↓";
-        downButton.onclick = function() { moveDown(li); };
-  
-        let deleteButton = document.createElement("button");
-        deleteButton.textContent = "削除";
-        deleteButton.onclick = function() { deleteTask(task.id); };
-  
-        controlsDiv.appendChild(upButton);
-        controlsDiv.appendChild(downButton);
-        controlsDiv.appendChild(deleteButton);
-  
-        li.appendChild(numberSpan);
-        li.appendChild(contentSpan);
-        li.appendChild(controlsDiv);
-  
-        ul.appendChild(li);
-        updateListNumbers(ul);
+    const li = document.createElement("li");
+
+    const numberSpan = document.createElement("span");
+    numberSpan.className = "item-number";
+    // 番号は後で updateListNumbers で更新
+
+    const contentSpan = document.createElement("span");
+    contentSpan.className = "item-content";
+    contentSpan.textContent = task.content;
+
+    const controlsDiv = document.createElement("div");
+    controlsDiv.className = "controls";
+
+    const upButton = document.createElement("button");
+    upButton.textContent = "↑";
+    upButton.onclick = function () { moveUp(li); };
+
+    const downButton = document.createElement("button");
+    downButton.textContent = "↓";
+    downButton.onclick = function () { moveDown(li); };
+
+    const deleteButton = document.createElement("button");
+    deleteButton.textContent = "削除";
+    deleteButton.onclick = function () { deleteTask(task.id); };
+
+    controlsDiv.appendChild(upButton);
+    controlsDiv.appendChild(downButton);
+    controlsDiv.appendChild(deleteButton);
+
+    li.appendChild(numberSpan);
+    li.appendChild(contentSpan);
+    li.appendChild(controlsDiv);
+
+    ul.appendChild(li);
+    updateListNumbers(ul);
+  }
+
+  function updateListNumbers(ul) {
+    const items = ul.getElementsByTagName("li");
+    for (let i = 0; i < items.length; i++) {
+      const numberSpan = items[i].getElementsByClassName("item-number")[0];
+      numberSpan.textContent = (i + 1) + ". ";
     }
-  
-    function updateListNumbers(ul) {
-        let items = ul.getElementsByTagName("li");
-        for (let i = 0; i < items.length; i++) {
-            let numberSpan = items[i].getElementsByClassName("item-number")[0];
-            numberSpan.textContent = (i + 1) + ". ";
-        }
+  }
+
+  function moveUp(li) {
+    const prev = li.previousElementSibling;
+    if (prev) {
+      li.parentNode.insertBefore(li, prev);
+      updateListNumbers(li.parentNode);
     }
-  
-    function moveUp(li) {
-        let prev = li.previousElementSibling;
-        if (prev) {
-            li.parentNode.insertBefore(li, prev);
-            updateListNumbers(li.parentNode);
-        }
+  }
+
+  function moveDown(li) {
+    const next = li.nextElementSibling;
+    if (next) {
+      li.parentNode.insertBefore(next, li);
+      updateListNumbers(li.parentNode);
     }
-  
-    function moveDown(li) {
-        let next = li.nextElementSibling;
-        if (next) {
-            li.parentNode.insertBefore(next, li);
-            updateListNumbers(li.parentNode);
-        }
+  }
+
+  async function addItem(type) {
+    let inputId;
+    if (type === 'main') {
+      inputId = 'mainGoalInput';
+    } else if (type === 'sub') {
+      inputId = 'subGoalInput';
+    } else {
+      inputId = type + 'Input';
     }
-  
-    async function addItem(type) {
-        let inputId;
-        if (type === 'main') {
-            inputId = 'mainGoalInput';
-        } else if (type === 'sub') {
-            inputId = 'subGoalInput';
-        } else {
-            inputId = type + 'Input';
-        }
-        const input = document.getElementById(inputId);
-        const content = input.value.trim();
-        if (content === "") {
-            alert(`${type}は空白にできません`);
-            return;
-        }
-        const task = { content, type };
-        try {
-            const response = await fetch(`${apiUrl}/tasks`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${authToken}`,
-                },
-                body: JSON.stringify(task),
-            });
-            const newTask = await response.json();
-            addTaskToList(newTask);
-            input.value = "";
-        } catch (error) {
-            console.error("タスクの追加エラー:", error);
-        }
+    const input = document.getElementById(inputId);
+    const content = input.value.trim();
+    if (content === "") {
+      alert(`${type}は空白にできません`);
+      return;
     }
-  
-    async function deleteTask(id) {
-        try {
-            const response = await fetch(`${apiUrl}/tasks/${id}`, {
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${authToken}` },
-            });
-            if (response.ok) {
-                fetchTasks();
-            } else { 
-                alert('タスク削除のエラー'); 
-            }
-        } catch (error) {
-            console.error('タスク削除エラー:', error);
-        }
+    const task = { content, type };
+    try {
+      const response = await fetch(`${apiUrl}/tasks`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`,
+        },
+        body: JSON.stringify(task),
+      });
+      const newTask = await response.json();
+      addTaskToList(newTask);
+      input.value = "";
+    } catch (error) {
+      console.error("タスクの追加エラー:", error);
     }
-  
-    function logout() {
-        localStorage.removeItem('authToken');
-        window.location.href = "/";
-    }
-  
-    document.getElementById("habitInput").addEventListener("keydown", function(e){
-      if(e.key === "Enter") {
-        e.preventDefault();
-        addItem('habit');
+  }
+
+  async function deleteTask(id) {
+    try {
+      const response = await fetch(`${apiUrl}/tasks/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${authToken}` },
+      });
+      if (response.ok) {
+        fetchTasks();
+      } else { 
+        alert('タスク削除のエラー'); 
       }
-    });
-    document.getElementById("mainGoalInput").addEventListener("keydown", function(e){
-      if(e.key === "Enter") {
-        e.preventDefault();
-        addItem('main');
-      }
-    });
-    document.getElementById("subGoalInput").addEventListener("keydown", function(e){
-      if(e.key === "Enter") {
-        e.preventDefault();
-        addItem('sub');
-      }
-    });
-  
-    window.onload = function() { fetchTasks(); }
+    } catch (error) {
+      console.error('タスク削除エラー:', error);
+    }
+  }
+
+  function logout() {
+    localStorage.removeItem('authToken');
+    window.location.href = "/";
+  }
+
+  document.getElementById("habitInput").addEventListener("keydown", function (e) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      addItem('habit');
+    }
+  });
+  document.getElementById("mainGoalInput").addEventListener("keydown", function (e) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      addItem('main');
+    }
+  });
+  document.getElementById("subGoalInput").addEventListener("keydown", function (e) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      addItem('sub');
+    }
+  });
+
+  window.onload = function () { fetchTasks(); }
 </script>
 </body>
 </html>

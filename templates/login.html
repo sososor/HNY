@@ -72,9 +72,7 @@
       .then(response => response.json())
       .then(data => {
         if (data.message === "User registered successfully" || data.message === "Login successful") {
-          if (data.token) {
-            localStorage.setItem('authToken', data.token);
-          }
+          // 登録完了後は自動でログインページにリダイレクト
           if (data.redirectUrl) {
             window.location.href = data.redirectUrl;
           }
